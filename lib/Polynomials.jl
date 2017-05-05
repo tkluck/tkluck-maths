@@ -3,7 +3,7 @@ module Polynomials
 export groebner_basis
 
 
-import Base: +,==,*,//,-,convert,promote_rule,show,cmp,isless
+import Base: +,==,*,//,-,convert,promote_rule,show,cmp,isless,zero
 
 type Exponent{NumVars}
     e::NTuple{NumVars, Int}
@@ -155,8 +155,28 @@ function leading_term{P <: _Polynomial}(p::P)
     end
 end
 
-typealias _ModuleElement{P <: _Polynomial} Union{P, Vector{P}}
-typealias _ModuleElementVector{P <: _Polynomial} Union{AbstractVector{P}, AbstractVector{Vector{P}}}
+typealias _ModuleElement{P <: _Polynomial} Vector{P}
+typealias _AbstractModuleElement{P <: _Polynomial} Union{P, _ModuleElement{P}}
+typealias _AbstractModuleElementVector{P <: _Polynomial} Union{AbstractVector{P}, AbstractVector{_ModuleElement{P}}}
+
+zero{P <: _Polynomial}(a::AbstractVector{Vector{P}}) = [[0 for _ in a_i] for a_i in a]
+
+type _ModuleMonomial{M <: _Monomial}
+    m::M
+    pos::Int
+end
+
+*{P<:_Polynomial}(a::P, x::_ModuleElement{P})= P[ a*x_i for x_i in x ]
+*{R<:Number, NumVars}(x::_ModuleElement{_Polynomial{R, NumVars}}, a::_Monomial{R, NumVars})= convert(_Polynomial{R,NumVars}, a) * x
+
+function leading_term{P<:_Polynomial}(a::_ModuleElement{P})
+    for (i, f_i) in enumerate(a)
+        if f_i != 0
+            return _ModuleMonomial(leading_term(f_i), i)
+        end
+    end
+    throw(ArgumentError("The zero element $( a ) does not have a leading term"))
+end
 
 function _lcm_multipliers{NumVars}(a::Exponent{NumVars}, b::Exponent{NumVars})
      _lcm = Exponent{NumVars}(
@@ -203,6 +223,23 @@ function _monomial_div{M<: _Monomial}(a::M, b::M)::Nullable{M}
     end
 end
 
+function _monomial_div{M<: _Monomial}(a::_ModuleMonomial{M}, b::_ModuleMonomial{M})::Nullable{M}
+    if a.pos != b.pos
+        return nothing
+    else
+        return _monomial_div(a.m, b.m)
+    end
+end
+
+_maybe_lcm_multipliers{M <: _Monomial}(a::M, b::M)::Nullable{Tuple{M,M}} = _lcm_multipliers(a,b)
+function _maybe_lcm_multipliers{M <: _Monomial}(a::_ModuleMonomial{M}, b::_ModuleMonomial{M})::Nullable{Tuple{M,M}}
+    if a.pos != b.pos
+        return nothing
+    else
+        return _lcm_multipliers(a.m, b.m)
+    end
+end
+
 function _lead_div_with_remainder{R,NumVars}(f::_Polynomial{R,NumVars}, g::_Polynomial{R,NumVars})::Tuple{Nullable{_Polynomial{R,NumVars}}, _Polynomial{R,NumVars}}
     maybe_factor = _monomial_div(leading_term(f), leading_term(g))
 
@@ -214,16 +251,37 @@ function _lead_div_with_remainder{R,NumVars}(f::_Polynomial{R,NumVars}, g::_Poly
     end
 end
 
-function _reduce{P <: _Polynomial}(f::_ModuleElement{P}, G::_ModuleElementVector{P})
-    factors = zero(G)
+_monomials{R, NumVars}(f::_Polynomial{R, NumVars}) = reverse(f.coeffs)
 
+function _monomials{R<:Number, NumVars}(f::_ModuleElement{_Polynomial{R, NumVars}})
+    return [
+        _ModuleMonomial{_Monomial{R, NumVars}}(m, i)
+        for (i, f_i) in enumerate(f)
+        for m in _monomials(f_i)
+    ]
+end
+
+
+function _div_with_remainder{P <: _Polynomial}(f::_AbstractModuleElement{P}, g::_AbstractModuleElement{P})::Tuple{Nullable{P}, _AbstractModuleElement{P}}
+    for monomial in _monomials(f)
+        maybe_factor = _monomial_div(monomial, leading_term(g))
+        if !isnull(maybe_factor)
+            factor = get(maybe_factor)
+            return factor, f - g*factor
+        end
+    end
+    return nothing, f
+end
+
+function _reduce{P <: _Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractModuleElementVector{P})
+    factors = zeros(P, length(G))
     frst = true
     more_loops = false
     while frst || more_loops
         frst = false
         more_loops = false
         for (i, g) in enumerate(G)
-            q, f = _lead_div_with_remainder(f, g)
+            q, f = _div_with_remainder(f, g)
             if !isnull(q)
                 factors[i] += get(q)
                 more_loops = true
@@ -239,7 +297,7 @@ end
 
 
 
-function groebner_basis{P <: _Polynomial}(polynomials::_ModuleElementVector{P})
+function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P})
 
     result = copy(polynomials)
     transformation =[ P[ i==j ? 1 : 0 for i in eachindex(polynomials)] for j in eachindex(polynomials)]
@@ -256,22 +314,28 @@ function groebner_basis{P <: _Polynomial}(polynomials::_ModuleElementVector{P})
         lt_a = leading_term(a)
         lt_b = leading_term(b)
 
-        m_a, m_b = _lcm_multipliers(lt_a, lt_b)
-        S = m_a * a - m_b * b
+        maybe_multipliers = _maybe_lcm_multipliers(lt_a, lt_b)
+        if !isnull(maybe_multipliers)
+            m_a, m_b = get(maybe_multipliers)
+            S = m_a * a - m_b * b
 
-        if S != 0
-            (S_red, factors) = _reduce(S, result)
+            if S != 0
+                # potential speedup: wikipedia says that in all but the 'last steps'
+                # (whichever those may be), we can get away with a version of _reduce
+                # that only does lead division
+                (S_red, factors) = _reduce(S, result)
 
-            factors[i] += m_a
-            factors[j] += m_b
+                factors[i] += m_a
+                factors[j] += m_b
 
-            if S_red != 0
-                new_j = length(result)+1
-                append!(pairs_to_consider, [(new_i, new_j) for new_i in eachindex(result)])
-                append!(result, [S_red])
+                if S_red != 0
+                    new_j = length(result)+1
+                    append!(pairs_to_consider, [(new_i, new_j) for new_i in eachindex(result)])
+                    append!(result, [S_red])
 
-                tr = [ sum(-f * transformation[x][y] for (x,f) in enumerate(factors)) for y in eachindex(polynomials) ]
-                append!(transformation, [tr])
+                    tr = [ sum(-f * transformation[x][y] for (x,f) in enumerate(factors)) for y in eachindex(polynomials) ]
+                    append!(transformation, [tr])
+                end
             end
         end
     end
