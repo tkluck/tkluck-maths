@@ -9,7 +9,7 @@ type Exponent{NumVars}
     e::NTuple{NumVars, Int}
 end
 
-function =={NumVars}(a::Exponent{NumVars}, b::Exponent{NumVars})
+function =={E <: Exponent}(a::E, b::E)
     return a.e == b.e
 end
 
@@ -21,34 +21,37 @@ function +{NumVars}(a::Exponent{NumVars}, b::Exponent{NumVars})
     )
 end
 
-function cmp{NumVars}(a::Exponent{NumVars}, b::Exponent{NumVars})
+function cmp{E <: Exponent}(a::E, b::E)
     # degrevlex
     if(sum(a.e) == sum(b.e))
-        return cmp(a.e, b.e)
+        return -cmp(a.e, b.e)
     else
         return cmp(sum(a.e), sum(b.e))
     end
 end
 
-isless{NumVars}(a::Exponent{NumVars}, b::Exponent{NumVars}) = cmp(a, b)<0
+isless{E <: Exponent}(a::E, b::E) = cmp(a, b)<0
 
-typealias _Monomial{R<:Number, NumVars} Pair{Exponent{NumVars}, R}
+typealias _Monomial{R<:Number, NumVars} Tuple{Exponent{NumVars}, R}
+
+_Monomial{R<:Number,NumVars}(a::Exponent{NumVars}, b::R)= _Monomial((a,b))
 
 coefficient{R,NumVars}(a::_Monomial{R, NumVars})::R = a[2]
 
 function //{R,NumVars,S}(a::_Monomial{R, NumVars}, b::S)
     exponent, coeff = a
     T = promote_type(R,S)
-    return _Monomial{T,NumVars}(exponent, coeff // b)
+    return _Monomial(exponent, coeff // b)
 end
 
 immutable _Polynomial{R<:Number, NumVars} <: Number
     coeffs::Vector{ _Monomial{R, NumVars} }
 end
 
+
 convert{R<:Number, NumVars}(::Type{_Polynomial{R, NumVars}}, c0::R) = (
     c0 != 0
-       ? _Polynomial{R, NumVars}([Pair(Exponent(ntuple(i->0, Val{NumVars})), c0)])
+       ? _Polynomial{R, NumVars}([_Monomial(Exponent(ntuple(i->0, Val{NumVars})), c0)])
        : _Polynomial{R, NumVars}([])
 )
 promote_rule{R<:Number,NumVars,S<:Number}(::Type{_Polynomial{R, NumVars}}, ::Type{S}) =
@@ -75,15 +78,15 @@ function +{R, T, NumVars}(a::_Polynomial{R, NumVars}, b::_Polynomial{T, NumVars}
         ((exponent_b, coefficient_b), next_state_b) = next(b.coeffs, state_b)
 
         if exponent_a < exponent_b
-            append!(res, [Pair(exponent_a, coefficient_a)])
+            append!(res, [_Monomial(exponent_a, coefficient_a)])
             state_a = next_state_a
         elseif exponent_b < exponent_a
-            append!(res, [Pair(exponent_b, coefficient_b)])
+            append!(res, [_Monomial(exponent_b, coefficient_b)])
             state_b = next_state_b
         else
             coeff = coefficient_a + coefficient_b
             if coeff != 0
-                append!(res, [Pair(exponent_a, coeff)])
+                append!(res, [_Monomial(exponent_a, coeff)])
             end
             state_b = next_state_b
             state_a = next_state_a
@@ -104,14 +107,14 @@ function  *{R,T,NumVars}(a::_Polynomial{R,NumVars}, b::_Polynomial{T,NumVars})
     # of append! that does a reallocation at every step. So implement
     # it manually below
     #summands = [
-    #    Pair(exp_a + exp_b, coeff_a * coeff_b)
+    #    _Monomial(exp_a + exp_b, coeff_a * coeff_b)
     #    for (exp_a, coeff_a) in a.coeffs for (exp_b, coeff_b) in b.coeffs
     #]
     summands = Vector{_Monomial{S,NumVars}}(length(a.coeffs) * length(b.coeffs))
     ix = 1
     for (exp_a, coeff_a) in a.coeffs
         for (exp_b, coeff_b) in b.coeffs
-            summands[ix] = Pair(exp_a + exp_b, coeff_a * coeff_b)
+            summands[ix] = _Monomial(exp_a + exp_b, coeff_a * coeff_b)
             ix += 1
         end
     end
@@ -124,7 +127,7 @@ function  *{R,T,NumVars}(a::_Polynomial{R,NumVars}, b::_Polynomial{T,NumVars})
             _, cur_coef = res[end]
             res[end] = exponent => cur_coef + coef
         else
-            append!(res, [ Pair(exponent, coef) ])
+            append!(res, [ _Monomial(exponent, coef) ])
             last_exp = exponent
         end
     end
@@ -132,25 +135,28 @@ function  *{R,T,NumVars}(a::_Polynomial{R,NumVars}, b::_Polynomial{T,NumVars})
     return _Polynomial{S, NumVars}(res)
 end
 
-function -{R,NumVars}(f::_Polynomial{R,NumVars})
-    return _Polynomial([Pair(exponent, -coeff) for (exponent, coeff) in f.coeffs])
+function -{P <: _Polynomial}(f::P)
+    return P([_Monomial(exponent, -coeff) for (exponent, coeff) in f.coeffs])
 end
 
-function -{R,NumVars}(a::_Polynomial{R,NumVars}, b::_Polynomial{R,NumVars})
+function -{P <: _Polynomial}(a::P, b::P)
     return a + -b
 end
 
-function =={R, NumVars}(a::_Polynomial{R, NumVars}, b::_Polynomial{R, NumVars})
+function =={P <: _Polynomial}(a::P, b::P)
     return a.coeffs == b.coeffs
 end
 
-function leading_term{R,NumVars}(p::_Polynomial{R,NumVars})
+function leading_term{P <: _Polynomial}(p::P)
     if length(p.coeffs) > 0
         return p.coeffs[end]
     else
         throw(ArgumentError("The zero polynomial $( p ) does not have a leading term"))
     end
 end
+
+typealias _ModuleElement{P <: _Polynomial} Union{P, Vector{P}}
+typealias _ModuleElementVector{P <: _Polynomial} Union{AbstractVector{P}, AbstractVector{Vector{P}}}
 
 function _lcm_multipliers{NumVars}(a::Exponent{NumVars}, b::Exponent{NumVars})
      _lcm = Exponent{NumVars}(
@@ -173,21 +179,21 @@ function _lcm_multipliers{NumVars}(a::Exponent{NumVars}, b::Exponent{NumVars})
     return multiplier_a, multiplier_b
 end
 
-function _is_constant{R,NumVars}(a::_Monomial{R,NumVars})
+function _is_constant{M <: _Monomial}(a::M)
     exponent, coeff = a
     return sum(exponent.e) == 0
 end
 
-function _lcm_multipliers{R,NumVars}(a::_Monomial{R,NumVars}, b::_Monomial{R,NumVars})
+function _lcm_multipliers{M <: _Monomial}(a::M, b::M)
     exp_a, coeff_a = a
     exp_b, coeff_b = b
 
     m_exp_a, m_exp_b = _lcm_multipliers(exp_a, exp_b)
 
-    return Pair(m_exp_a, coeff_b), Pair(m_exp_b, coeff_a)
+    return _Monomial(m_exp_a, coeff_b), _Monomial(m_exp_b, coeff_a)
 end
 
-function _monomial_div{R,NumVars}(a::_Monomial{R,NumVars}, b::_Monomial{R,NumVars})::Nullable{_Monomial{R,NumVars}}
+function _monomial_div{M<: _Monomial}(a::M, b::M)::Nullable{M}
     mul_a, mul_b = _lcm_multipliers(a, b)
 
     if _is_constant(mul_a)
@@ -208,7 +214,7 @@ function _lead_div_with_remainder{R,NumVars}(f::_Polynomial{R,NumVars}, g::_Poly
     end
 end
 
-function _reduce{R,NumVars}(f::_Polynomial{R,NumVars}, G::Vector{_Polynomial{R,NumVars}})
+function _reduce{P <: _Polynomial}(f::_ModuleElement{P}, G::_ModuleElementVector{P})
     factors = zero(G)
 
     frst = true
@@ -233,10 +239,10 @@ end
 
 
 
-function groebner_basis{R,NumVars}(polynomials::Vector{_Polynomial{R,NumVars}})
+function groebner_basis{P <: _Polynomial}(polynomials::_ModuleElementVector{P})
 
     result = copy(polynomials)
-    transformation =[ _Polynomial{R,NumVars}[ i==j ? 1 : 0 for i in eachindex(polynomials)] for j in eachindex(polynomials)]
+    transformation =[ P[ i==j ? 1 : 0 for i in eachindex(polynomials)] for j in eachindex(polynomials)]
 
 
     pairs_to_consider = [
@@ -321,8 +327,8 @@ function show{R}(io::IO, p::_Polynomial{R, 2})
     end
 end
 
-x = _Polynomial{Int, 2}([Pair(Exponent{2}((1,0)), 1)])
-y = _Polynomial{Int, 2}([Pair(Exponent{2}((0,1)), 1)])
+x = _Polynomial{Int, 2}([_Monomial(Exponent{2}((1,0)), 1)])
+y = _Polynomial{Int, 2}([_Monomial(Exponent{2}((0,1)), 1)])
 
 function random_polynomial()
     res = sum([ rand(0:100) * x^i for i = 0:10 ])
