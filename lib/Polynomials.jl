@@ -1,6 +1,6 @@
 module Polynomials
 
-export groebner_basis, syzygies
+export groebner_basis, syzygies, minimal_groebner_basis
 
 
 import Base: +,==,*,//,-,convert,promote_rule,show,cmp,isless,zero
@@ -59,7 +59,7 @@ promote_rule{R<:Number,NumVars,S<:Number}(::Type{_Polynomial{R, NumVars}}, ::Typ
     _Polynomial{promote_type(R,S), NumVars}
 
 convert{R<:Number, NumVars}(::Type{_Polynomial{R, NumVars}}, c::_Monomial{R,NumVars}) = (
-    c != 0
+    coefficient(c) != 0
        ?  _Polynomial{R, NumVars}([c])
        : _Polynomial{R, NumVars}([])
 )
@@ -76,6 +76,7 @@ promote_rule{R<:Number,NumVars}(::Type{_Polynomial{R, NumVars}}, ::Type{_Monomia
 
 iszero{P <: _Polynomial}(p::P)= length(p.coeffs) == 0
 iszero{P <: _Polynomial}(p::Vector{P}) = all(iszero(p_i) for p_i in p)
+iszero{P <: _Polynomial}(p::Matrix{P}) = all(iszero(p_i) for p_i in p)
 
 function +{R, T, NumVars}(a::_Polynomial{R, NumVars}, b::_Polynomial{T, NumVars})
     S = promote_type(R, T)
@@ -166,8 +167,9 @@ function leading_term{P <: _Polynomial}(p::P)
 end
 
 typealias _ModuleElement{P <: _Polynomial} Vector{P}
-typealias _AbstractModuleElement{P <: _Polynomial} Union{P, _ModuleElement{P}}
-typealias _AbstractModuleElementVector{P <: _Polynomial} Union{AbstractVector{P}, AbstractVector{_ModuleElement{P}}}
+typealias _HomModuleElement{P <: _Polynomial} Matrix{P}
+typealias _AbstractModuleElement{P <: _Polynomial} Union{P, _ModuleElement{P}, _HomModuleElement{P}}
+typealias _AbstractModuleElementVector{P <: _Polynomial} Union{AbstractVector{P}, AbstractVector{_ModuleElement{P}}, AbstractVector{_HomModuleElement{P}}}
 
 zero{P <: _Polynomial}(a::AbstractVector{Vector{P}}) = [[0 for _ in a_i] for a_i in a]
 
@@ -180,7 +182,20 @@ end
 *{R<:Number, NumVars}(x::_ModuleElement{_Polynomial{R, NumVars}}, a::_Monomial{R, NumVars})= convert(_Polynomial{R,NumVars}, a) * x
 *{R<:Number, NumVars}(a::_Monomial{R, NumVars}, x::_ModuleElement{_Polynomial{R, NumVars}})= convert(_Polynomial{R,NumVars}, a) * x
 
+*{P<:_Polynomial}(a::P, x::_HomModuleElement{P})= P[ a*x_i for x_i in x ]
+*{R<:Number, NumVars}(x::_HomModuleElement{_Polynomial{R, NumVars}}, a::_Monomial{R, NumVars})= convert(_Polynomial{R,NumVars}, a) * x
+*{R<:Number, NumVars}(a::_Monomial{R, NumVars}, x::_HomModuleElement{_Polynomial{R, NumVars}})= convert(_Polynomial{R,NumVars}, a) * x
+
 function leading_term{P<:_Polynomial}(a::_ModuleElement{P})
+    for (i, f_i) in enumerate(a)
+        if !iszero(f_i)
+            return _ModuleMonomial(leading_term(f_i), i)
+        end
+    end
+    throw(ArgumentError("The zero element $( a ) does not have a leading term"))
+end
+
+function leading_term{P<:_Polynomial}(a::_HomModuleElement{P})
     for (i, f_i) in enumerate(a)
         if !iszero(f_i)
             return _ModuleMonomial(leading_term(f_i), i)
@@ -272,6 +287,13 @@ function _monomials{R<:Number, NumVars}(f::_ModuleElement{_Polynomial{R, NumVars
     ]
 end
 
+function _monomials{R<:Number, NumVars}(f::_HomModuleElement{_Polynomial{R, NumVars}})
+    return [
+        _ModuleMonomial{_Monomial{R, NumVars}}(m, i)
+        for (i, f_i) in enumerate(f)
+        for m in _monomials(f_i)
+    ]
+end
 
 function _div_with_remainder{P <: _Polynomial}(f::_AbstractModuleElement{P}, g::_AbstractModuleElement{P})::Tuple{Nullable{P}, _AbstractModuleElement{P}}
     if iszero(f)
@@ -359,12 +381,29 @@ function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVec
     return result, flat_tr
 end
 
+function minimal_groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P})
+
+    (basis, transformation) = groebner_basis(polynomials)
+
+    redundant = Set{Int}()
+    for i in eachindex(basis)
+        #(p_red, factors) = _reduce(basis[i], [b for (j,b) in enumerate(basis) if j!=i && !(j in redundant)])
+        if iszero(basis[i])
+            push!(redundant, i)
+        end
+    end
+
+    necessary = [ i for i in eachindex(basis) if !(i in redundant) ]
+    return basis[ necessary ], transformation[ necessary, : ]
+
+end
+
 function syzygies{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P})
     pairs_to_consider = [
         (i,j) for i in eachindex(polynomials) for j in eachindex(polynomials) if i < j
     ]
 
-    result = Vector{Matrix{P}}()
+    result = Vector{_ModuleElement{P}}()
 
     for (i,j) in pairs_to_consider
         a = polynomials[i]
@@ -381,14 +420,19 @@ function syzygies{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P}
             if !iszero(S_red)
                 throw(ArgumentError("syzygies(...) expects a Groebner basis, so S_red = $( S_red ) should be zero"))
             end
-            syzygy[1,i] -= m_a
-            syzygy[1,j] += m_b
+            syz_vector= vec(syzygy)
+            syz_vector[i] -= m_a
+            syz_vector[j] += m_b
 
-            append!(result, [syzygy])
+            (syz_red, _) = _reduce(syz_vector, result)
+            if !iszero(syz_red)
+                append!(result, [syz_red])
+            end
         end
     end
 
-    flat_result = [ result[x][1,y] for x=eachindex(result), y=eachindex(polynomials) ]
+    (result, _) = minimal_groebner_basis(result)
+    flat_result = [ result[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
 
     return flat_result
 end
@@ -435,6 +479,40 @@ function show{R}(io::IO, p::_Polynomial{R, 2})
             print(io, " y")
         elseif j > 1
             print(io, " y^$(j)")
+        end
+    end
+end
+
+function show{R}(io::IO, p::_Polynomial{R, 3})
+    frst = true
+    if length(p.coeffs) == 0
+        show(io, zero(R))
+    end
+    for (e, c) in p.coeffs
+        (i,j,k) = e.e
+        if !frst
+            print(io, " + ")
+        else
+            frst = false
+        end
+        if c != 1 || i == 0
+            assert(c != 0)
+            print(io, c)
+        end
+        if i == 1
+            print(io, " x")
+        elseif i > 1
+            print(io, " x^$(i)")
+        end
+        if j == 1
+            print(io, " y")
+        elseif j > 1
+            print(io, " y^$(j)")
+        end
+        if k == 1
+            print(io, " z")
+        elseif k > 1
+            print(io, " z^$(k)")
         end
     end
 end

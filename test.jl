@@ -10,26 +10,33 @@ println(g)
 println(h)
 println(_reduce(f, [g]))
 
-println(groebner_basis([f, g]))
-println(groebner_basis([f, g, h]))
+display(groebner_basis([f, g]))
+println()
+display(groebner_basis([f, g, h]))
 @time groebner_basis([f, g, h])
 
 (basis, transformation) = groebner_basis([f, g])
-println(basis)
-println(syzygies(basis))
-
-println( syzygies(basis) * basis )
+display(basis)
+println()
+display(syzygies(basis))
+println()
+display( syzygies(basis) * basis )
+println()
 
 
 using Modules
 
 F = ModuleMorphism{typeof(x)}([x 0; 0 y])
 
-println(lift([x, -y], 3*x + x*y))
+display(lift([x, -y], 3*x + x*y))
+println()
 
-println(lift(F, [2*x; x*y]))
+display(lift(F, [2*x; x*y]))
+println()
 
 G = ModuleMorphism{typeof(x)}([x x*y; y y^2])
-println(kernel(G))
+display(kernel(G))
+println()
 
-println(G.m * kernel(G))
+display(G.m * kernel(G))
+println()
