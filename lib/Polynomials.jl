@@ -64,8 +64,10 @@ promote_rule{R<:Number,NumVars}(::Type{_Polynomial{R, NumVars}}, ::Type{_Monomia
 
 +{R,NumVars}(a::_Monomial{R,NumVars},b::_Polynomial{R,NumVars})=+(promote(a,b)...)
 *{R,NumVars}(a::_Monomial{R,NumVars},b::_Polynomial{R,NumVars})=*(promote(a,b)...)
+-{R,NumVars}(a::_Monomial{R,NumVars},b::_Polynomial{R,NumVars})=*(promote(a,b)...)
 +{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=+(promote(a,b)...)
 *{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=*(promote(a,b)...)
+-{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=*(promote(a,b)...)
 
 function +{R, T, NumVars}(a::_Polynomial{R, NumVars}, b::_Polynomial{T, NumVars})
     S = promote_type(R, T)
@@ -329,7 +331,7 @@ function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVec
             (S_red, factors) = _reduce(S, result)
 
             factors[i] += m_a
-            factors[j] += m_b
+            factors[j] -= m_b
 
             if S_red != 0
                 new_j = length(result)+1
