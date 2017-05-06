@@ -74,6 +74,9 @@ promote_rule{R<:Number,NumVars}(::Type{_Polynomial{R, NumVars}}, ::Type{_Monomia
 *{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=*(promote(a,b)...)
 -{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=-(promote(a,b)...)
 
+iszero{P <: _Polynomial}(p::P)= length(p.coeffs) == 0
+iszero{P <: _Polynomial}(p::Vector{P}) = all(iszero(p_i) for p_i in p)
+
 function +{R, T, NumVars}(a::_Polynomial{R, NumVars}, b::_Polynomial{T, NumVars})
     S = promote_type(R, T)
     res = Vector{ _Monomial{R, NumVars} }()
@@ -175,10 +178,11 @@ end
 
 *{P<:_Polynomial}(a::P, x::_ModuleElement{P})= P[ a*x_i for x_i in x ]
 *{R<:Number, NumVars}(x::_ModuleElement{_Polynomial{R, NumVars}}, a::_Monomial{R, NumVars})= convert(_Polynomial{R,NumVars}, a) * x
+*{R<:Number, NumVars}(a::_Monomial{R, NumVars}, x::_ModuleElement{_Polynomial{R, NumVars}})= convert(_Polynomial{R,NumVars}, a) * x
 
 function leading_term{P<:_Polynomial}(a::_ModuleElement{P})
     for (i, f_i) in enumerate(a)
-        if f_i != 0
+        if !iszero(f_i)
             return _ModuleMonomial(leading_term(f_i), i)
         end
     end
@@ -270,8 +274,8 @@ end
 
 
 function _div_with_remainder{P <: _Polynomial}(f::_AbstractModuleElement{P}, g::_AbstractModuleElement{P})::Tuple{Nullable{P}, _AbstractModuleElement{P}}
-    if f == 0
-        return f, zero(g)
+    if iszero(f)
+        return zero(P), f
     else
         for monomial in _monomials(f)
             maybe_factor = _monomial_div(monomial, leading_term(g))
@@ -298,7 +302,7 @@ function _reduce{P <: _Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractMod
                 factors[1, i] += get(q)
                 more_loops = true
             end
-            if f_red == 0
+            if iszero(f_red)
                 return f_red, factors
             end
         end
@@ -339,7 +343,7 @@ function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVec
             factors[1, i] -= m_a
             factors[1, j] += m_b
 
-            if S_red != 0
+            if !iszero(S_red)
                 new_j = length(result)+1
                 append!(pairs_to_consider, [(new_i, new_j) for new_i in eachindex(result)])
                 append!(result, [S_red])
@@ -360,7 +364,7 @@ function syzygies{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P}
         (i,j) for i in eachindex(polynomials) for j in eachindex(polynomials) if i < j
     ]
 
-    result = []
+    result = Vector{Matrix{P}}()
 
     for (i,j) in pairs_to_consider
         a = polynomials[i]
@@ -374,8 +378,8 @@ function syzygies{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P}
             S = m_a * a - m_b * b
 
             (S_red, syzygy) = _reduce(S, polynomials)
-            if S_red != 0
-                throw(ArgumentError("syzygies(...) expects a Groebner basis"))
+            if !iszero(S_red)
+                throw(ArgumentError("syzygies(...) expects a Groebner basis, so S_red = $( S_red ) should be zero"))
             end
             syzygy[1,i] -= m_a
             syzygy[1,j] += m_b
@@ -384,7 +388,7 @@ function syzygies{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P}
         end
     end
 
-    flat_result = [ result[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
+    flat_result = [ result[x][1,y] for x=eachindex(result), y=eachindex(polynomials) ]
 
     return flat_result
 end
