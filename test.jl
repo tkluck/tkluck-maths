@@ -30,3 +30,7 @@ println(lift([x, -y], 3*x + x*y))
 
 println(lift(F, [2*x; x*y]))
 
+G = Morphism{typeof(x),2,2}([x x*y; y y^2])
+println(kernel(G))
+
+println(G.m * kernel(G))

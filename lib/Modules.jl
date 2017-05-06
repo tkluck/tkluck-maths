@@ -1,8 +1,8 @@
 module Modules
 
-using Polynomials: _Polynomial, _reduce, groebner_basis
+using Polynomials: _Polynomial, _reduce, groebner_basis, syzygies
 
-export Morphism
+export Morphism, kernel
 
 type Morphism{P <: _Polynomial, DimDomain, DimCodomain}
     m::Matrix{P}
@@ -43,5 +43,16 @@ function lift{P <: _Polynomial}(F::Vector{P}, x::P)::Nullable{Matrix{P}}
 
 end
 
+function kernel{P <: _Polynomial, DimDomain, DimCodomain}(F::Morphism{P, DimDomain, DimCodomain})
+    F_vectors = [
+        getindex(F.m, :, i)
+        for i in 1:DimDomain
+    ]
+    (basis, transformation) = groebner_basis(F_vectors)
+    S = syzygies(basis)
+
+    return transpose(S * transformation)
+
+end
 
 end
