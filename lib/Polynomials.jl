@@ -263,14 +263,18 @@ end
 
 
 function _div_with_remainder{P <: _Polynomial}(f::_AbstractModuleElement{P}, g::_AbstractModuleElement{P})::Tuple{Nullable{P}, _AbstractModuleElement{P}}
-    for monomial in _monomials(f)
-        maybe_factor = _monomial_div(monomial, leading_term(g))
-        if !isnull(maybe_factor)
-            factor = get(maybe_factor)
-            return factor, f - g*factor
+    if f == 0
+        return f, zero(g)
+    else
+        for monomial in _monomials(f)
+            maybe_factor = _monomial_div(monomial, leading_term(g))
+            if !isnull(maybe_factor)
+                factor = get(maybe_factor)
+                return factor, f - g*factor
+            end
         end
+        return nothing, f
     end
-    return nothing, f
 end
 
 function _reduce{P <: _Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractModuleElementVector{P})
@@ -319,23 +323,21 @@ function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVec
             m_a, m_b = get(maybe_multipliers)
             S = m_a * a - m_b * b
 
-            if S != 0
-                # potential speedup: wikipedia says that in all but the 'last steps'
-                # (whichever those may be), we can get away with a version of _reduce
-                # that only does lead division
-                (S_red, factors) = _reduce(S, result)
+            # potential speedup: wikipedia says that in all but the 'last steps'
+            # (whichever those may be), we can get away with a version of _reduce
+            # that only does lead division
+            (S_red, factors) = _reduce(S, result)
 
-                factors[i] += m_a
-                factors[j] += m_b
+            factors[i] += m_a
+            factors[j] += m_b
 
-                if S_red != 0
-                    new_j = length(result)+1
-                    append!(pairs_to_consider, [(new_i, new_j) for new_i in eachindex(result)])
-                    append!(result, [S_red])
+            if S_red != 0
+                new_j = length(result)+1
+                append!(pairs_to_consider, [(new_i, new_j) for new_i in eachindex(result)])
+                append!(result, [S_red])
 
-                    tr = [ sum(-f * transformation[x][y] for (x,f) in enumerate(factors)) for y in eachindex(polynomials) ]
-                    append!(transformation, [tr])
-                end
+                tr = [ sum(-f * transformation[x][y] for (x,f) in enumerate(factors)) for y in eachindex(polynomials) ]
+                append!(transformation, [tr])
             end
         end
     end
