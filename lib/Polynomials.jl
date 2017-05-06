@@ -54,20 +54,25 @@ convert{R<:Number, NumVars}(::Type{_Polynomial{R, NumVars}}, c0::R) = (
        ? _Polynomial{R, NumVars}([_Monomial(Exponent(ntuple(i->0, Val{NumVars})), c0)])
        : _Polynomial{R, NumVars}([])
 )
+
 promote_rule{R<:Number,NumVars,S<:Number}(::Type{_Polynomial{R, NumVars}}, ::Type{S}) =
     _Polynomial{promote_type(R,S), NumVars}
 
-convert{R<:Number, NumVars}(::Type{_Polynomial{R, NumVars}}, c::_Monomial{R,NumVars}) =
-    _Polynomial{R, NumVars}([c])
+convert{R<:Number, NumVars}(::Type{_Polynomial{R, NumVars}}, c::_Monomial{R,NumVars}) = (
+    c != 0
+       ?  _Polynomial{R, NumVars}([c])
+       : _Polynomial{R, NumVars}([])
+)
+
 promote_rule{R<:Number,NumVars}(::Type{_Polynomial{R, NumVars}}, ::Type{_Monomial{R, NumVars}}) =
     _Polynomial{R, NumVars}
 
 +{R,NumVars}(a::_Monomial{R,NumVars},b::_Polynomial{R,NumVars})=+(promote(a,b)...)
 *{R,NumVars}(a::_Monomial{R,NumVars},b::_Polynomial{R,NumVars})=*(promote(a,b)...)
--{R,NumVars}(a::_Monomial{R,NumVars},b::_Polynomial{R,NumVars})=*(promote(a,b)...)
+-{R,NumVars}(a::_Monomial{R,NumVars},b::_Polynomial{R,NumVars})=-(promote(a,b)...)
 +{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=+(promote(a,b)...)
 *{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=*(promote(a,b)...)
--{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=*(promote(a,b)...)
+-{R,NumVars}(a::_Polynomial{R,NumVars},b::_Monomial{R,NumVars})=-(promote(a,b)...)
 
 function +{R, T, NumVars}(a::_Polynomial{R, NumVars}, b::_Polynomial{T, NumVars})
     S = promote_type(R, T)
@@ -127,13 +132,13 @@ function  *{R,T,NumVars}(a::_Polynomial{R,NumVars}, b::_Polynomial{T,NumVars})
     for (exponent, coef) in summands
         if exponent == last_exp
             _, cur_coef = res[end]
-            res[end] = exponent => cur_coef + coef
+            res[end] = _Monomial(exponent, cur_coef + coef)
         else
             append!(res, [ _Monomial(exponent, coef) ])
             last_exp = exponent
         end
     end
-
+    res = [m for m in res if coefficient(m) != 0]
     return _Polynomial{S, NumVars}(res)
 end
 
