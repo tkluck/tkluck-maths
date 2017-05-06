@@ -1,6 +1,6 @@
 module Polynomials
 
-export groebner_basis
+export groebner_basis, syzygies
 
 
 import Base: +,==,*,//,-,convert,promote_rule,show,cmp,isless,zero
@@ -285,25 +285,26 @@ function _div_with_remainder{P <: _Polynomial}(f::_AbstractModuleElement{P}, g::
 end
 
 function _reduce{P <: _Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractModuleElementVector{P})
-    factors = zeros(P, length(G))
+    factors = transpose(zeros(P, length(G)))
     frst = true
     more_loops = false
+    f_red = f
     while frst || more_loops
         frst = false
         more_loops = false
         for (i, g) in enumerate(G)
-            q, f = _div_with_remainder(f, g)
+            q, f_red = _div_with_remainder(f_red, g)
             if !isnull(q)
-                factors[i] += get(q)
+                factors[1, i] += get(q)
                 more_loops = true
             end
-            if f == 0
-                return f, factors
+            if f_red == 0
+                return f_red, factors
             end
         end
     end
 
-    return f, factors
+    return f_red, factors
 end
 
 
@@ -335,8 +336,8 @@ function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVec
             # that only does lead division
             (S_red, factors) = _reduce(S, result)
 
-            factors[i] += m_a
-            factors[j] -= m_b
+            factors[1, i] -= m_a
+            factors[1, j] += m_b
 
             if S_red != 0
                 new_j = length(result)+1
@@ -352,6 +353,40 @@ function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVec
     flat_tr = [ transformation[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
 
     return result, flat_tr
+end
+
+function syzygies{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P})
+    pairs_to_consider = [
+        (i,j) for i in eachindex(polynomials) for j in eachindex(polynomials) if i < j
+    ]
+
+    result = []
+
+    for (i,j) in pairs_to_consider
+        a = polynomials[i]
+        b = polynomials[j]
+        lt_a = leading_term(a)
+        lt_b = leading_term(b)
+
+        maybe_multipliers = _maybe_lcm_multipliers(lt_a, lt_b)
+        if !isnull(maybe_multipliers)
+            m_a, m_b = get(maybe_multipliers)
+            S = m_a * a - m_b * b
+
+            (S_red, syzygy) = _reduce(S, polynomials)
+            if S_red != 0
+                throw(ArgumentError("syzygies(...) expects a Groebner basis"))
+            end
+            syzygy[1,i] -= m_a
+            syzygy[1,j] += m_b
+
+            append!(result, [syzygy])
+        end
+    end
+
+    flat_result = [ result[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
+
+    return flat_result
 end
 
 function show{R}(io::IO, p::_Polynomial{R, 1})

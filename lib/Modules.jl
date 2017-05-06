@@ -9,7 +9,7 @@ type Morphism{P <: _Polynomial, DimDomain, DimCodomain}
 end
 
 
-function lift{P <: _Polynomial, DimDomain, DimCodomain}(F::Morphism{P, DimDomain, DimCodomain}, x::Vector{P})
+function lift{P <: _Polynomial, DimDomain, DimCodomain}(F::Morphism{P, DimDomain, DimCodomain}, x::Vector{P})::Nullable{Matrix{P}}
 
     assert(length(x) == DimCodomain)
 
@@ -23,14 +23,14 @@ function lift{P <: _Polynomial, DimDomain, DimCodomain}(F::Morphism{P, DimDomain
     if any(x_i != 0 for x_i in x_red)
         return nothing
     else
-        return transformation * factors
+        return factors * transformation
     end
 
 
 
 end
 
-function lift{P <: _Polynomial}(F::Vector{P}, x::P)::Vector{P}
+function lift{P <: _Polynomial}(F::Vector{P}, x::P)::Nullable{Matrix{P}}
 
     (basis, transformation) = groebner_basis(F)
     (x_red, factors) = _reduce(x, basis)
@@ -38,7 +38,7 @@ function lift{P <: _Polynomial}(F::Vector{P}, x::P)::Vector{P}
     if x_red != 0
         return nothing
     else
-        return transformation * factors
+        return factors * transformation
     end
 
 end

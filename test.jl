@@ -14,6 +14,12 @@ println(groebner_basis([f, g]))
 println(groebner_basis([f, g, h]))
 @time groebner_basis([f, g, h])
 
+(basis, transformation) = groebner_basis([f, g])
+println(basis)
+println(syzygies(basis))
+
+println( syzygies(basis) * basis )
+
 
 using Modules
 using Modules: lift
