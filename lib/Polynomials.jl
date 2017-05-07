@@ -480,82 +480,26 @@ function monomials_not_in_ideal{R <: Number, NumVars}(monomials::Vector{_Polynom
 
 end
 
-function show{R}(io::IO, p::_Polynomial{R, 1})
+const VARIABLE_NAMES="xyzwuv"
+function show{R, NumVars}(io::IO, p::_Polynomial{R, NumVars})
+    assert(NumVars <= length(VARIABLE_NAMES))
     frst = true
+    if length(p.coeffs) == 0
+        print(io, zero(R))
+    end
     for (e, c) in p.coeffs
-        (i,) = e.e
         if !frst
             print(io, " + ")
         else
             frst = false
         end
         print(io, c)
-        if i == 1
-            print(io, " x")
-        elseif i > 1
-            print(io, " x^$(i)")
-        end
-    end
-end
-
-function show{R}(io::IO, p::_Polynomial{R, 2})
-    frst = true
-    if length(p.coeffs) == 0
-        show(io, zero(R))
-    end
-    for (e, c) in p.coeffs
-        (i,j) = e.e
-        if !frst
-            print(io, " + ")
-        else
-            frst = false
-        end
-        if c != 1 || i == 0
-            print(io, c)
-        end
-        if i == 1
-            print(io, " x")
-        elseif i > 1
-            print(io, " x^$(i)")
-        end
-        if j == 1
-            print(io, " y")
-        elseif j > 1
-            print(io, " y^$(j)")
-        end
-    end
-end
-
-function show{R}(io::IO, p::_Polynomial{R, 3})
-    frst = true
-    if length(p.coeffs) == 0
-        show(io, zero(R))
-    end
-    for (e, c) in p.coeffs
-        (i,j,k) = e.e
-        if !frst
-            print(io, " + ")
-        else
-            frst = false
-        end
-        if c != 1 || i == 0
-            assert(c != 0)
-            print(io, c)
-        end
-        if i == 1
-            print(io, " x")
-        elseif i > 1
-            print(io, " x^$(i)")
-        end
-        if j == 1
-            print(io, " y")
-        elseif j > 1
-            print(io, " y^$(j)")
-        end
-        if k == 1
-            print(io, " z")
-        elseif k > 1
-            print(io, " z^$(k)")
+        for (i, x) in zip(e.e, VARIABLE_NAMES)
+            if i == 1
+                print(io, " $x")
+            elseif i > 1
+                print(io, " $x^$i")
+            end
         end
     end
 end
