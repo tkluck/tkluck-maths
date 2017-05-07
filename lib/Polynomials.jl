@@ -478,7 +478,7 @@ function monomials_not_in_ideal{R <: Number, NumVars}(monomials::Vector{_Polynom
     for p in product([0:(b-1) for b in degree_bounds]...)
         m = prod(v^p[i] for (i,v) in enumerate(vars))
         if !any(!isnull(_monomial_div(m.coeffs[1], d.coeffs[1])) for d in monomials)
-            append!(result, [m])
+            push!(result, m)
         end
     end
     return result
