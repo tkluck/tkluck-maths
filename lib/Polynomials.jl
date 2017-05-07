@@ -99,15 +99,15 @@ function +{R, T, NumVars}(a::_Polynomial{R, NumVars}, b::_Polynomial{T, NumVars}
         ((exponent_b, coefficient_b), next_state_b) = next(b.coeffs, state_b)
 
         if exponent_a < exponent_b
-            append!(res, [_Monomial(exponent_a, coefficient_a)])
+            push!(res, _Monomial(exponent_a, coefficient_a))
             state_a = next_state_a
         elseif exponent_b < exponent_a
-            append!(res, [_Monomial(exponent_b, coefficient_b)])
+            push!(res, _Monomial(exponent_b, coefficient_b))
             state_b = next_state_b
         else
             coeff = coefficient_a + coefficient_b
             if coeff != 0
-                append!(res, [_Monomial(exponent_a, coeff)])
+                push!(res, _Monomial(exponent_a, coeff))
             end
             state_b = next_state_b
             state_a = next_state_a
@@ -125,7 +125,7 @@ function  *{R,T,NumVars}(a::_Polynomial{R,NumVars}, b::_Polynomial{T,NumVars})
     res = Vector{ _Monomial{R, NumVars} }()
 
     # the following seems to be implemented through a very naive version
-    # of append! that does a reallocation at every step. So implement
+    # of push! that does a reallocation at every step. So implement
     # it manually below
     #summands = [
     #    _Monomial(exp_a + exp_b, coeff_a * coeff_b)
@@ -148,7 +148,7 @@ function  *{R,T,NumVars}(a::_Polynomial{R,NumVars}, b::_Polynomial{T,NumVars})
             _, cur_coef = res[end]
             res[end] = _Monomial(exponent, cur_coef + coef)
         else
-            append!(res, [ _Monomial(exponent, coef) ])
+            push!(res,  _Monomial(exponent, coef))
             last_exp = exponent
         end
     end
@@ -383,10 +383,10 @@ function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVec
             if !iszero(S_red)
                 new_j = length(result)+1
                 append!(pairs_to_consider, [(new_i, new_j) for new_i in eachindex(result)])
-                append!(result, [S_red])
+                push!(result, S_red)
 
                 tr = [ sum(-f * transformation[x][y] for (x,f) in enumerate(factors)) for y in eachindex(polynomials) ]
-                append!(transformation, [tr])
+                push!(transformation, tr)
             end
         end
     end
@@ -441,7 +441,7 @@ function syzygies{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P}
 
             (syz_red, _) = _reduce(syz_vector, result)
             if !iszero(syz_red)
-                append!(result, [syz_red])
+                push!(result, syz_red)
             end
         end
     end
