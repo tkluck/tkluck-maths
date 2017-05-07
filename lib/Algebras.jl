@@ -76,14 +76,19 @@ convert{R <: Number, NumVars, T <: Tuple}(
         ::Type{AlgebraElement{R, NumVars, T}},
         x::AlgebraElement{R, NumVars, T},
     ) = x
-function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
-        ::Type{AlgebraElement{R, NumVars1, T}},
-        x::AlgebraElement{S, NumVars2, U},
-    )
 
-    # some black magic: create a function that does the re-indexing from
-    # the order in U to the order in T. It is actually about as easy to
-    # do it in this way as it is to write the appropriate data structures.
+
+# some black magic: create a function that does the re-indexing from
+# the order in U to the order in T. It is actually about as easy to
+# do it in this way as it is to write the appropriate data structures.
+#
+# By memoizing the result, we ensure that we only need to compile the
+# function once.
+_converter_cache = Dict{Tuple{DataType, DataType}, Function}()
+function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U})
+    if (T,U) in keys(_converter_cache)
+        return _converter_cache[T,U]
+    end
     converter = :( tuple() )
     for i in 1:nfields(T)
         push!(converter.args, 0)
@@ -96,8 +101,16 @@ function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: 
     end
     converter = :( exponent_tuple -> $converter )
     f = eval(converter)
-    # ^^^ end result of the black magic
+    _converter_cache[T,U] = f
+    return f
+end
 
+function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
+        ::Type{AlgebraElement{R, NumVars1, T}},
+        x::AlgebraElement{S, NumVars2, U},
+    )
+
+    f = _converter(T, U)
     new_terms = map(x.p.coeffs) do term
         exponent, c = term
         new_exponent = f(exponent.e)
