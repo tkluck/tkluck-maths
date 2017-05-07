@@ -48,6 +48,16 @@ immutable _Polynomial{R<:Number, NumVars} <: Number
     coeffs::Vector{ _Monomial{R, NumVars} }
 end
 
+num_variables{R<:Number, NumVars}(::Type{_Polynomial{R,NumVars}}) = NumVars
+variables{R<:Number, NumVars}(::Type{_Polynomial{R,NumVars}}) = ntuple(Val{NumVars}) do i
+    exponent = ntuple(Val{NumVars}) do j
+        i == j ? 1 : 0
+    end
+    _Polynomial([_Monomial(Exponent(exponent), one(R))])
+end
+
+num_variables{R<:Number, NumVars}(p::_Polynomial{R,NumVars}) = num_variables(typeof(p))
+variables{R<:Number, NumVars}(p::_Polynomial{R,NumVars}) = variables(typeof(p))
 
 convert{R<:Number, NumVars}(::Type{_Polynomial{R, NumVars}}, c0::R) = (
     c0 != 0
@@ -435,6 +445,39 @@ function syzygies{P <: _Polynomial}(polynomials::_AbstractModuleElementVector{P}
     flat_result = [ result[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
 
     return flat_result
+end
+
+import Iterators: product
+
+function monomials_not_in_ideal{R <: Number, NumVars}(monomials::Vector{_Polynomial{R, NumVars}})
+    vars = variables(_Polynomial{R, NumVars})
+
+    degree_bounds = [0 for _ in vars]
+    for monom in monomials
+        exponent_tuple = monom.coeffs[1][1].e
+        variables_appearing = [(i,e) for (i,e) in enumerate(exponent_tuple) if e != 0]
+        if length(variables_appearing) == 1
+            (variable_index,variable_exp), = variables_appearing
+            if degree_bounds[ variable_index ] == 0
+                degree_bounds[ variable_index ] = variable_exp
+            elseif variable_exp < degree_bounds[ variable_index ]
+                degree_bounds[ variable_index ] = variable_exp
+            end
+        end
+    end
+    if any(b == 0 for b in degree_bounds)
+        throw(ArgumentError("monomials_not_in_ideal: result is not a finite set"))
+    end
+
+    result = eltype(monomials)[]
+    for p in product([0:(b-1) for b in degree_bounds]...)
+        m = prod(v^p[i] for (i,v) in enumerate(vars))
+        if !any(!isnull(_monomial_div(m.coeffs[1], d.coeffs[1])) for d in monomials)
+            append!(result, [m])
+        end
+    end
+    return result
+
 end
 
 function show{R}(io::IO, p::_Polynomial{R, 1})
