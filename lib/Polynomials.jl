@@ -308,6 +308,8 @@ end
 function _div_with_remainder{P <: _Polynomial}(f::_AbstractModuleElement{P}, g::_AbstractModuleElement{P})::Tuple{Nullable{P}, _AbstractModuleElement{P}}
     if iszero(f)
         return zero(P), f
+    elseif iszero(g)
+        return nothing, f
     else
         for monomial in _monomials(f)
             maybe_factor = _monomial_div(monomial, leading_term(g))
@@ -359,6 +361,9 @@ function groebner_basis{P <: _Polynomial}(polynomials::_AbstractModuleElementVec
         (i,j) = pop!(pairs_to_consider)
         a = result[i]
         b = result[j]
+        if iszero(a) || iszero(b)
+            continue
+        end
         lt_a = leading_term(a)
         lt_b = leading_term(b)
 
