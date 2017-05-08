@@ -1,31 +1,31 @@
-module Algebras
+module PolynomialRings
 
 import Base: show
 
-import Polynomials: _Polynomial, _Monomial, Exponent, variables
+import Polynomials: Polynomial, Monomial, Exponent, variables
 
-immutable AlgebraElement{R <: Number, NumVars, T <: Tuple} <: Number
-    p::_Polynomial{R,NumVars}
+immutable PolynomialRingElement{R <: Number, NumVars, T <: Tuple} <: Number
+    p::Polynomial{R,NumVars}
 end
 
-immutable Algebra
+immutable PolynomialRing
     basering :: DataType
     variable_names :: Any
     datatype :: DataType
 end
 
 
-function algebra{R <: Number}(::Type{R}, variable_names...)
+function polynomial_ring{R <: Number}(::Type{R}, variable_names...)
     T = Tuple{variable_names...}
     numvars = nfields(T)
 
-    vars = variables(_Polynomial{R, numvars})
+    vars = variables(Polynomial{R, numvars})
 
-    datatype = AlgebraElement{R, numvars, T}
-    return Algebra(R, T, datatype), [datatype(v) for v in vars]
+    datatype = PolynomialRingElement{R, numvars, T}
+    return PolynomialRing(R, T, datatype), [datatype(v) for v in vars]
 end
 
-function show{R, NumVars, T <: Tuple}(io::IO, p::AlgebraElement{R, NumVars, T})
+function show{R, NumVars, T <: Tuple}(io::IO, p::PolynomialRingElement{R, NumVars, T})
     frst = true
     if length(p.p.coeffs) == 0
         print(io, zero(R))
@@ -49,19 +49,32 @@ function show{R, NumVars, T <: Tuple}(io::IO, p::AlgebraElement{R, NumVars, T})
 end
 
 import Base: +,*,-,==,!=
-+{A <: AlgebraElement}(a::A, b::A)  = A(a.p * b.p)
-*{A <: AlgebraElement}(a::A, b::A)  = A(a.p * b.p)
--{A <: AlgebraElement}(a::A, b::A)  = A(a.p * b.p)
--{A <: AlgebraElement}(a::A)        = A(-a.p)
-=={A <: AlgebraElement}(a::A, b::A) = a.p == b.p
-!={A <: AlgebraElement}(a::A, b::A) = a.p != b.p
++{A <: PolynomialRingElement}(a::A, b::A)  = A(a.p + b.p)
+*{A <: PolynomialRingElement}(a::A, b::A)  = A(a.p * b.p)
+-{A <: PolynomialRingElement}(a::A, b::A)  = A(a.p - b.p)
+-{A <: PolynomialRingElement}(a::A)        = A(-a.p)
+=={A <: PolynomialRingElement}(a::A, b::A) = (a.p == b.p)
+!={A <: PolynomialRingElement}(a::A, b::A) = (a.p != b.p)
+
+import Base: promote_rule, promote_type, convert
+promote_rule{R <: Number, NumVars, T <: Tuple, S <: Number}(
+        ::Type{PolynomialRingElement{R,NumVars,T}},
+        ::Type{S},
+    ) = PolynomialRingElement{promote_type(R,S),NumVars,T}
+convert{R <: Number, NumVars, T <: Tuple, S <: Number}(
+        ::Type{PolynomialRingElement{R,NumVars,T}},
+        x::S,
+    ) = PolynomialRingElement{R,NumVars,T}(convert(Polynomial{R,NumVars},x))
+
+promote_rule{S <: PolynomialRingElement}(::Type{S}, ::Type{S}) = S
+convert{S <: PolynomialRingElement}(::Type{S}, x::S) = x
 
 _symname(s::Symbol)=repr(s)[2:end]
 fieldtypes{T <: Tuple}(t::Type{T}) = [_symname(fieldtype(T, i)) for i in 1:nfields(T)]
 import Base: convert, promote_rule
 function promote_rule{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
-        ::Type{AlgebraElement{R, NumVars1, T}},
-        ::Type{AlgebraElement{S, NumVars2, U}},
+        ::Type{PolynomialRingElement{R, NumVars1, T}},
+        ::Type{PolynomialRingElement{S, NumVars2, U}},
     )
     RS = promote_type(R,S)
     all_names = Set()
@@ -70,11 +83,11 @@ function promote_rule{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, 
     names = sort(collect(Symbol(s) for s in all_names))
     TU = Tuple{names...}
     NumVars = length(all_names)
-    return AlgebraElement{RS, NumVars, TU}
+    return PolynomialRingElement{RS, NumVars, TU}
 end
 convert{R <: Number, NumVars, T <: Tuple}(
-        ::Type{AlgebraElement{R, NumVars, T}},
-        x::AlgebraElement{R, NumVars, T},
+        ::Type{PolynomialRingElement{R, NumVars, T}},
+        x::PolynomialRingElement{R, NumVars, T},
     ) = x
 
 
@@ -112,28 +125,18 @@ function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U})
 end
 
 function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
-        ::Type{AlgebraElement{R, NumVars1, T}},
-        x::AlgebraElement{S, NumVars2, U},
+        ::Type{PolynomialRingElement{R, NumVars1, T}},
+        x::PolynomialRingElement{S, NumVars2, U},
     )
 
     f = _converter(T, U)
     new_terms = map(x.p.coeffs) do term
         exponent, c = term
         new_exponent = f(exponent.e)
-        _Monomial{R, NumVars1}((Exponent(new_exponent), c))
+        Monomial{R, NumVars1}((Exponent(new_exponent), c))
     end
 
-    return AlgebraElement{R, NumVars1, T}(_Polynomial(new_terms))
+    return PolynomialRingElement{R, NumVars1, T}(Polynomial(new_terms))
 end
-
-
-A,(x,y) = algebra(Int64, :x, :y)
-B,(z,) = algebra(Int64, :z)
-
-println(typeof(x))
-println(typeof(z))
-
-println(x*z)
-
 
 end
