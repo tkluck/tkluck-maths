@@ -5,6 +5,3 @@ check:
 
 try:
 	JULIA_LOAD_PATH="`pwd`/lib" /home/tkluck/.local/bin/julia -O3 mf-deformation.jl
-
-poly:
-	JULIA_LOAD_PATH="`pwd`/lib" /home/tkluck/.local/bin/julia -O3 lib/PolynomialRing.jl
