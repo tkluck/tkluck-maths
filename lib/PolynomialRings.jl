@@ -11,7 +11,7 @@ immutable PolynomialRing
 end
 
 
-function polynomial_ring{R <: Number}(::Type{R}, variable_names...)
+function polynomial_ring{R <: Number}(::Type{R}, variable_names::Symbol...)
     T = Tuple{variable_names...}
     NumVars = nfields(T)
     datatype = Polynomial{R, NumVars, T}
