@@ -75,6 +75,12 @@ function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U})
     if (T,U) in keys(_converter_cache)
         return _converter_cache[T,U]
     end
+    # ensure that we do not throw away data
+    for j in 1:nfields(U)
+        if !any(fieldtype(T,i) == fieldtype(U,j) for i in 1:nfields(T))
+            throw(TypeError("Cannot convert variables $U to variables $T"))
+        end
+    end
     # create an expression that calls the tuple constructor. No arguments -- so far
     converter = :( tuple() )
     for i in 1:nfields(T)
