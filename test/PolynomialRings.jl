@@ -3,7 +3,6 @@ using PolynomialRings: polynomial_ring
 
 @testset "PolynomialRings" begin
 
-
     R,(x,y) = polynomial_ring(Rational{Int}, :x, :y)
     S,(z,) = polynomial_ring(Int, :z)
 

@@ -1,12 +1,6 @@
 module PolynomialRings
 
-import Base: show
-
-import Polynomials: Polynomial, Monomial, Exponent, variables
-
-immutable PolynomialRingElement{R <: Number, NumVars, T <: Tuple} <: Number
-    p::Polynomial{R,NumVars}
-end
+import Polynomials: Polynomial, Term, Monomial, variables
 
 immutable PolynomialRing
     basering :: DataType
@@ -17,20 +11,18 @@ end
 
 function polynomial_ring{R <: Number}(::Type{R}, variable_names...)
     T = Tuple{variable_names...}
-    numvars = nfields(T)
-
-    vars = variables(Polynomial{R, numvars})
-
-    datatype = PolynomialRingElement{R, numvars, T}
-    return PolynomialRing(R, T, datatype), [datatype(v) for v in vars]
+    NumVars = nfields(T)
+    datatype = Polynomial{R, NumVars, T}
+    return PolynomialRing(R, T, datatype), variables(datatype)
 end
 
-function show{R, NumVars, T <: Tuple}(io::IO, p::PolynomialRingElement{R, NumVars, T})
+import Base: show
+function show{R, NumVars, T <: Tuple}(io::IO, p::Polynomial{R, NumVars, T})
     frst = true
-    if length(p.p.coeffs) == 0
+    if length(p.terms) == 0
         print(io, zero(R))
     end
-    for (e, c) in p.p.coeffs
+    for (e, c) in p.terms
         if !frst
             print(io, " + ")
         else
@@ -48,33 +40,14 @@ function show{R, NumVars, T <: Tuple}(io::IO, p::PolynomialRingElement{R, NumVar
     end
 end
 
-import Base: +,*,-,==,!=
-+{A <: PolynomialRingElement}(a::A, b::A)  = A(a.p + b.p)
-*{A <: PolynomialRingElement}(a::A, b::A)  = A(a.p * b.p)
--{A <: PolynomialRingElement}(a::A, b::A)  = A(a.p - b.p)
--{A <: PolynomialRingElement}(a::A)        = A(-a.p)
-=={A <: PolynomialRingElement}(a::A, b::A) = (a.p == b.p)
-!={A <: PolynomialRingElement}(a::A, b::A) = (a.p != b.p)
-
 import Base: promote_rule, promote_type, convert
-promote_rule{R <: Number, NumVars, T <: Tuple, S <: Number}(
-        ::Type{PolynomialRingElement{R,NumVars,T}},
-        ::Type{S},
-    ) = PolynomialRingElement{promote_type(R,S),NumVars,T}
-convert{R <: Number, NumVars, T <: Tuple, S <: Number}(
-        ::Type{PolynomialRingElement{R,NumVars,T}},
-        x::S,
-    ) = PolynomialRingElement{R,NumVars,T}(convert(Polynomial{R,NumVars},x))
-
-promote_rule{S <: PolynomialRingElement}(::Type{S}, ::Type{S}) = S
-convert{S <: PolynomialRingElement}(::Type{S}, x::S) = x
 
 _symname(s::Symbol)=repr(s)[2:end]
 fieldtypes{T <: Tuple}(t::Type{T}) = [_symname(fieldtype(T, i)) for i in 1:nfields(T)]
 import Base: convert, promote_rule
 function promote_rule{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
-        ::Type{PolynomialRingElement{R, NumVars1, T}},
-        ::Type{PolynomialRingElement{S, NumVars2, U}},
+        ::Type{Polynomial{R, NumVars1, T}},
+        ::Type{Polynomial{S, NumVars2, U}},
     )
     RS = promote_type(R,S)
     all_names = Set()
@@ -83,11 +56,11 @@ function promote_rule{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, 
     names = sort(collect(Symbol(s) for s in all_names))
     TU = Tuple{names...}
     NumVars = length(all_names)
-    return PolynomialRingElement{RS, NumVars, TU}
+    return Polynomial{RS, NumVars, TU}
 end
 convert{R <: Number, NumVars, T <: Tuple}(
-        ::Type{PolynomialRingElement{R, NumVars, T}},
-        x::PolynomialRingElement{R, NumVars, T},
+        ::Type{Polynomial{R, NumVars, T}},
+        x::Polynomial{R, NumVars, T},
     ) = x
 
 
@@ -125,18 +98,18 @@ function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U})
 end
 
 function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
-        ::Type{PolynomialRingElement{R, NumVars1, T}},
-        x::PolynomialRingElement{S, NumVars2, U},
+        ::Type{Polynomial{R, NumVars1, T}},
+        x::Polynomial{S, NumVars2, U},
     )
 
     f = _converter(T, U)
-    new_terms = map(x.p.coeffs) do term
+    new_terms = map(x.terms) do term
         exponent, c = term
         new_exponent = f(exponent.e)
-        Monomial{R, NumVars1}((Exponent(new_exponent), c))
+        Term(Monomial(new_exponent), c)
     end
 
-    return PolynomialRingElement{R, NumVars1, T}(Polynomial(new_terms))
+    return Polynomial{R, NumVars1, T}(new_terms)
 end
 
 end

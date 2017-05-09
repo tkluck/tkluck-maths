@@ -1,18 +1,21 @@
 module Modules
 
-using Polynomials: _Polynomial, _reduce, minimal_groebner_basis, syzygies, groebner_basis
+using Polynomials: Polynomial
+using Groebner: reduce, minimal_groebner_basis, syzygies, groebner_basis
 
 export ModuleMorphism, HomspaceMorphism, lift, kernel, lift_and_obstruction
 
-abstract Morphism{P <: _Polynomial}
+abstract Morphism{P <: Polynomial}
 
-type ModuleMorphism{P <: _Polynomial} <: Morphism{P}
+type ModuleMorphism{P <: Polynomial} <: Morphism{P}
     m::Matrix{P}
 end
 
-type HomspaceMorphism{P <: _Polynomial} <: Morphism{P}
+type HomspaceMorphism{P <: Polynomial} <: Morphism{P}
     m::Array{P, 4}
 end
+
+(F::ModuleMorphism{P}){P <: Polynomial}(x::Vector{P}) = F.m * x
 
 span(F::ModuleMorphism) = [
     getindex(F.m, :, i)
@@ -35,10 +38,10 @@ function unflatten(F::HomspaceMorphism, coefficients)
     end
     return k
 end
-function lift{P <: _Polynomial}(F::ModuleMorphism{P}, x::Vector{P})::Nullable{Vector{P}}
+function lift{P <: Polynomial}(F::ModuleMorphism{P}, x::Vector{P})::Nullable{Vector{P}}
 
     (basis, transformation) = minimal_groebner_basis(span(F))
-    (x_red, factors) = _reduce(x, basis)
+    (x_red, factors) = reduce(x, basis)
 
     if any(x_i != 0 for x_i in x_red)
         return nothing
@@ -47,15 +50,15 @@ function lift{P <: _Polynomial}(F::ModuleMorphism{P}, x::Vector{P})::Nullable{Ve
     end
 end
 
-function lift_and_obstruction{P <: _Polynomial}(F::HomspaceMorphism{P}, x::Matrix{P})
+function lift_and_obstruction{P <: Polynomial}(F::HomspaceMorphism{P}, x::Matrix{P})
 
     (basis, transformation) = minimal_groebner_basis(span(F))
-    (x_red, factors) = _reduce(x, basis)
+    (x_red, factors) = reduce(x, basis)
 
     return unflatten(F, factors * transformation), x_red
 end
 
-function lift{P <: _Polynomial}(F::HomspaceMorphism{P}, x::Matrix{P})::Nullable{Matrix{P}}
+function lift{P <: Polynomial}(F::HomspaceMorphism{P}, x::Matrix{P})::Nullable{Matrix{P}}
 
     lift, obstruction = lift_and_obstruction(F, x)
 
@@ -66,10 +69,10 @@ function lift{P <: _Polynomial}(F::HomspaceMorphism{P}, x::Matrix{P})::Nullable{
     end
 end
 
-function lift{P <: _Polynomial}(F::Vector{P}, x::P)::Nullable{Matrix{P}}
+function lift{P <: Polynomial}(F::Vector{P}, x::P)::Nullable{Matrix{P}}
 
     (basis, transformation) = minimal_groebner_basis(F)
-    (x_red, factors) = _reduce(x, basis)
+    (x_red, factors) = reduce(x, basis)
 
     if x_red != 0
         return nothing
@@ -79,7 +82,7 @@ function lift{P <: _Polynomial}(F::Vector{P}, x::P)::Nullable{Matrix{P}}
 
 end
 
-function kernel{P <: _Polynomial}(F::ModuleMorphism{P})
+function kernel{P <: Polynomial}(F::ModuleMorphism{P})
     (basis, transformation) = minimal_groebner_basis(span(F))
     S = syzygies(basis)
 
@@ -89,7 +92,7 @@ function kernel{P <: _Polynomial}(F::ModuleMorphism{P})
 
 end
 
-function kernel{P <: _Polynomial}(F::HomspaceMorphism{P})
+function kernel{P <: Polynomial}(F::HomspaceMorphism{P})
     (basis, transformation) = minimal_groebner_basis(span(F))
     S = syzygies(basis)
 
@@ -98,6 +101,12 @@ function kernel{P <: _Polynomial}(F::HomspaceMorphism{P})
         unflatten(F, coefficients[i, :])
         for i in indices(coefficients, 1)
     ]
+
+end
+
+function cokernel_basis{P <: Polynomial}(F::Morphism{P})
+    (basis, transformation) = minimal_groebner_basis(span(F))
+    leading_terms = [leading_term(f) for f in basis]
 
 end
 

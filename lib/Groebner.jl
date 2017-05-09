@@ -1,6 +1,7 @@
 module Groebner
 
-using Polynomials: Polynomial, _AbstractModuleElement, _AbstractModuleElementVector, _div_with_remainder, leading_term, iszero
+using Polynomials: Polynomial, _AbstractModuleElement, _AbstractModuleElementVector
+using Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, _ModuleElement
 
 function reduce{P <: Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractModuleElementVector{P})
     factors = transpose(zeros(P, length(G)))
@@ -49,9 +50,9 @@ function groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVect
             S = m_a * a - m_b * b
 
             # potential speedup: wikipedia says that in all but the 'last steps'
-            # (whichever those may be), we can get away with a version of _reduce
+            # (whichever those may be), we can get away with a version of reduce
             # that only does lead division
-            (S_red, factors) = _reduce(S, result)
+            (S_red, factors) = reduce(S, result)
 
             factors[1, i] -= m_a
             factors[1, j] += m_b
@@ -78,7 +79,7 @@ function minimal_groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleEle
 
     redundant = Set{Int}()
     for i in eachindex(basis)
-        #(p_red, factors) = _reduce(basis[i], [b for (j,b) in enumerate(basis) if j!=i && !(j in redundant)])
+        #(p_red, factors) = reduce(basis[i], [b for (j,b) in enumerate(basis) if j!=i && !(j in redundant)])
         if iszero(basis[i])
             push!(redundant, i)
         end
@@ -107,7 +108,7 @@ function syzygies{P <: Polynomial}(polynomials::_AbstractModuleElementVector{P})
             m_a, m_b = get(maybe_multipliers)
             S = m_a * a - m_b * b
 
-            (S_red, syzygy) = _reduce(S, polynomials)
+            (S_red, syzygy) = reduce(S, polynomials)
             if !iszero(S_red)
                 throw(ArgumentError("syzygies(...) expects a Groebner basis, so S_red = $( S_red ) should be zero"))
             end
@@ -115,7 +116,7 @@ function syzygies{P <: Polynomial}(polynomials::_AbstractModuleElementVector{P})
             syz_vector[i] -= m_a
             syz_vector[j] += m_b
 
-            (syz_red, _) = _reduce(syz_vector, result)
+            (syz_red, _) = reduce(syz_vector, result)
             if !iszero(syz_red)
                 push!(result, syz_red)
             end
@@ -126,13 +127,6 @@ function syzygies{P <: Polynomial}(polynomials::_AbstractModuleElementVector{P})
     flat_result = [ result[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
 
     return flat_result
-end
-
-using PolynomialRings: PolynomialRingElement
-
-function reduce{P <: PolynomialRingElement}(f::P, G::Vector{P})
-    p, factors = reduce(f.p, [g.p for g in G])
-    return P(p), [P(f) for f in factors]
 end
 
 
