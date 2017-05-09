@@ -2,6 +2,8 @@ module PolynomialRings
 
 import Polynomials: Polynomial, Term, Monomial, variables
 
+import Iterators: groupby
+
 immutable PolynomialRing
     basering :: DataType
     variable_names :: Any
@@ -71,14 +73,16 @@ convert{R <: Number, NumVars, T <: Tuple}(
 # By memoizing the result, we ensure that we only need to compile the
 # function once.
 _converter_cache = Dict{Tuple{DataType, DataType}, Function}()
-function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U})
+function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U}, safe::Bool)
     if (T,U) in keys(_converter_cache)
         return _converter_cache[T,U]
     end
     # ensure that we do not throw away data
-    for j in 1:nfields(U)
-        if !any(fieldtype(T,i) == fieldtype(U,j) for i in 1:nfields(T))
-            throw(TypeError("Cannot convert variables $U to variables $T"))
+    if safe
+        for j in 1:nfields(U)
+            if !any(fieldtype(T,i) == fieldtype(U,j) for i in 1:nfields(T))
+                throw(TypeError("Cannot convert variables $U to variables $T"))
+            end
         end
     end
     # create an expression that calls the tuple constructor. No arguments -- so far
@@ -108,7 +112,7 @@ function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: 
         x::Polynomial{S, NumVars2, U},
     )
 
-    f = _converter(T, U)
+    f = _converter(T, U, true)
     new_terms = map(x.terms) do term
         exponent, c = term
         new_exponent = f(exponent.e)
@@ -116,6 +120,27 @@ function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: 
     end
 
     return Polynomial{R, NumVars1, T}(new_terms)
+end
+
+function expansion{R <: Number, NumVars, T <: Tuple}(
+        x::Polynomial{R, NumVars, T},
+        vars::Symbol...
+    )
+    other_vars = Symbol[fieldtype(T, i) for i in 1:nfields(T) if !(fieldtype(T,i) in vars)]
+    f = _converter(Tuple{vars...},       T, false)
+    g = _converter(Tuple{other_vars...}, T, false)
+
+    res = []
+    keyfunc = t -> repr(f(t[1].e))
+    for terms in groupby(keyfunc, sort(x.terms, by=keyfunc))
+        p = sum( Polynomial{R, length(other_vars), Tuple{other_vars...}}([ Term(Monomial(g(t[1].e)),       t[2]  )]) for t in terms )
+        w =      Polynomial{R, length(vars),       Tuple{vars...}      }([ Term(Monomial(f(terms[1][1].e)),one(R))])
+
+        push!(res, (w, p))
+    end
+
+    return res
+
 end
 
 end

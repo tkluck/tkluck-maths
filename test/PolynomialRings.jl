@@ -1,5 +1,5 @@
 using Base.Test
-using PolynomialRings: polynomial_ring
+using PolynomialRings: polynomial_ring, expansion
 
 @testset "PolynomialRings" begin
 
@@ -20,5 +20,7 @@ using PolynomialRings: polynomial_ring
     @test x*y*z == x*z*y
 
     @test (x+z)*(x-z) == x^2 - z^2
+
+    @test expansion(x*y*z + x*z + z^2, :z) == [(z, x*y + x), (z^2, 1)]
 
 end
