@@ -45,7 +45,7 @@ end
 import Base: promote_rule, promote_type, convert
 
 _symname(s::Symbol)=repr(s)[2:end]
-fieldtypes{T <: Tuple}(t::Type{T}) = [_symname(fieldtype(T, i)) for i in 1:nfields(T)]
+fieldtypes{T <: Tuple}(t::Type{T}) = Symbol[fieldtype(T, i) for i in 1:nfields(T)]
 import Base: convert, promote_rule
 function promote_rule{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
         ::Type{Polynomial{R, NumVars1, T}},
@@ -81,7 +81,7 @@ function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U}, safe::Bool)
     if safe
         for j in 1:nfields(U)
             if !any(fieldtype(T,i) == fieldtype(U,j) for i in 1:nfields(T))
-                throw(TypeError("Cannot convert variables $U to variables $T"))
+                throw(ArgumentError("Cannot convert variables $U to variables $T"))
             end
         end
     end
@@ -168,5 +168,40 @@ function expansion{R <: Number, NumVars, T <: Tuple}(
 
     return res
 end
+
+function (p::Polynomial{R, NumVars, T}){R <: Number, NumVars, T <: Tuple}(; kwargs...)
+    vars = [k for (k, v) in kwargs]
+    values = [v for (k, v) in kwargs]
+
+    remaining_vars = Symbol[fieldtype(T, i) for i in 1:nfields(T) if !(fieldtype(T,i) in vars)]
+
+    f = _converter(Tuple{vars...}, T, false)
+
+    if length(remaining_vars) == 0
+        res = zero(R)
+        for term in p.terms
+            m, c = term
+            res += c * prod(v^e_i for (v, e_i) in zip(values, f(m.e)))
+        end
+        return res
+    else
+        P = Polynomial{R, length(remaining_vars), Tuple{remaining_vars...}}
+        res = zero(P)
+        g = _converter(Tuple{remaining_vars...}, T, false)
+        for term in p.terms
+            m, c = term
+            res += prod(v^e_i for (v, e_i) in zip(values, f(m.e))) * P([ Term(Monomial(g(m.e)), c) ])
+        end
+        return res
+    end
+
+end
+
+function (p::Array{Polynomial{R, NumVars, T}}){R <: Number, NumVars, T <: Tuple}(; kwargs...)
+
+    return [p_i(;kwargs...) for p_i in p]
+
+end
+
 
 end

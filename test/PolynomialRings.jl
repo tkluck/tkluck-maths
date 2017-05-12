@@ -25,4 +25,10 @@ using PolynomialRings: polynomial_ring, expansion
 
     @test expansion([x*z 1; z+1 x], :z) == [(1, [0 1; 1 x]), (z, [x 0; 1 0])]
 
+    @test (x^2+y^2)(x=1,y=2) == 5
+    @test (x^2+y^2)(x=1) == 1+y^2
+    @test [1+x; 1+y](x=1) == [2; 1+y]
+    @test [1+x; 1+y](x=1, y=2) == [2; 3]
+
+
 end
