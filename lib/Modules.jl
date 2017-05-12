@@ -1,7 +1,7 @@
 module Modules
 
 using Polynomials: Polynomial
-using Groebner: reduce, minimal_groebner_basis, syzygies, groebner_basis
+import Groebner: reduce, minimal_groebner_basis, syzygies, groebner_basis
 
 export ModuleMorphism, HomspaceMorphism, lift, kernel, lift_and_obstruction
 
@@ -13,7 +13,10 @@ end
 
 type HomspaceMorphism{P <: Polynomial} <: Morphism{P}
     m::Array{P, 4}
+    _image_basis::Nullable{Vector{Array{P,2}}}
+    _image_basis_transformation::Nullable{Matrix{P}}
 end
+HomspaceMorphism{P <: Polynomial}(m::Array{P,4}) = HomspaceMorphism(m, Nullable{Vector{Array{P,2}}}(nothing), Nullable{Matrix{P}}(nothing))
 
 (F::ModuleMorphism{P}){P <: Polynomial}(x::Vector{P}) = F.m * x
 
@@ -52,7 +55,7 @@ end
 
 function lift_and_obstruction{P <: Polynomial}(F::HomspaceMorphism{P}, x::Matrix{P})
 
-    (basis, transformation) = minimal_groebner_basis(span(F))
+    (basis, transformation) = minimal_groebner_basis(F)
     (x_red, factors) = reduce(x, basis)
 
     return unflatten(F, factors * transformation), x_red
@@ -92,8 +95,17 @@ function kernel{P <: Polynomial}(F::ModuleMorphism{P})
 
 end
 
+function minimal_groebner_basis(F::HomspaceMorphism)
+    if isnull(F._image_basis)
+        basis, transformation = minimal_groebner_basis(span(F))
+        F._image_basis = basis
+        F._image_basis_transformation = transformation
+    end
+    return (get(F._image_basis), get(F._image_basis_transformation))
+end
+
 function kernel{P <: Polynomial}(F::HomspaceMorphism{P})
-    (basis, transformation) = minimal_groebner_basis(span(F))
+    basis, transformation = minimal_groebner_basis(F)
     S = syzygies(basis)
 
     coefficients = S * transformation
