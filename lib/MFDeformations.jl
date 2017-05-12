@@ -68,6 +68,7 @@ function deformation(Q, var_symbols...; max_order=20)
         MC = sum(Q_i * Q_j for (Q_i, Q_j) in zip(Qs, reverse(Qs)))
         Q_next, obs_next = mapreduce(
             (a,b)->(a[1]+b[1],a[2]+b[2]),
+            (zero(Q), zero(Q)),
             expansion(MC, var_symbols...)) do x
             w, MC_w = x
             Q_w, obs_w = lift_and_obstruction(dQ_even, -MC_w)
