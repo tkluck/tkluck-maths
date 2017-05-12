@@ -150,7 +150,7 @@ function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R
             last_exp = exponent
         end
     end
-    res = [m for m in res if coefficient(m) != 0]
+    filter!(m -> coefficient(m) != 0, res)
     return Polynomial{S, NumVars,T}(res)
 end
 
