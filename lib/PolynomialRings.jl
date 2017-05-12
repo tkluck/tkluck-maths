@@ -143,4 +143,24 @@ function expansion{R <: Number, NumVars, T <: Tuple}(
 
 end
 
+function expansion{R <: Number, NumVars, T <: Tuple}(
+        a::Array{Polynomial{R, NumVars, T}},
+        vars::Symbol...
+    )
+
+    array_of_expansions = [ (w,p,i) for (i, a_i) in enumerate(a) for (w,p) in expansion(a_i, vars...)]
+    sort!(array_of_expansions, by=a->a[1].terms[1][1])
+
+    res = []
+    for group in groupby(a -> a[1], array_of_expansions)
+        r = zero(a)
+        for (w,p,i) in group
+            r[i] = p
+        end
+        push!(res, (group[1][1], r))
+    end
+
+    return res
+end
+
 end

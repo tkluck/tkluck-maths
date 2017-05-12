@@ -23,4 +23,6 @@ using PolynomialRings: polynomial_ring, expansion
 
     @test expansion(x*y*z + x*z + z^2, :z) == [(z, x*y + x), (z^2, 1)]
 
+    @test expansion([x*z 1; z+1 x], :z) == [(1, [0 1; 1 x]), (z, [x 0; 1 0])]
+
 end
