@@ -30,8 +30,7 @@ span(F::HomspaceMorphism) = [
     # this 'flattens' the matrix basis into a single index.
     # the corresponding 'unflatten' operation happens elsewhere
     # in this file; search for 'unflatten'.
-    for j in indices(F.m, 2)
-    for i in indices(F.m, 1)
+    for j in indices(F.m, 2) for i in indices(F.m, 1)
 ]
 function unflatten(F::HomspaceMorphism, coefficients)
     k = zeros(eltype(F.m), size(F.m, 1), size(F.m, 2))

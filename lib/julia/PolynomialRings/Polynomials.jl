@@ -287,16 +287,14 @@ _monomials{R, NumVars, T<:Tuple}(f::Polynomial{R, NumVars,T}) = reverse(f.terms)
 function _monomials{R<:Number, NumVars,T<:Tuple}(f::_ModuleElement{Polynomial{R, NumVars,T}})
     return [
         _ModuleTerm{Term{R, NumVars}}(m, i)
-        for (i, f_i) in enumerate(f)
-        for m in _monomials(f_i)
+        for (i, f_i) in enumerate(f) for m in _monomials(f_i)
     ]
 end
 
 function _monomials{R<:Number, NumVars, T<:Tuple}(f::_HomModuleElement{Polynomial{R, NumVars,T}})
     return [
         _ModuleTerm{Term{R, NumVars}}(m, i)
-        for (i, f_i) in enumerate(f)
-        for m in _monomials(f_i)
+        for (i, f_i) in enumerate(f) for m in _monomials(f_i)
     ]
 end
 
