@@ -98,8 +98,10 @@ function deformation(Q, var_symbols...; max_order=20)
         var_symbols = [ gensym() for _ in H ]
     end
     _, vars = polynomial_ring(Int, var_symbols...)
-    if length(vars) != length(H)
-        throw(ArgumentError("Need $( length(H) ) variables for this deformation"))
+    if length(vars) < length(H)
+        throw(ArgumentError("Need at least $( length(H) ) variables for this deformation"))
+    else
+        vars = vars[1:length(H)]
     end
 
     Q1 = sum(w * h for (w,h) in zip(vars, H))
