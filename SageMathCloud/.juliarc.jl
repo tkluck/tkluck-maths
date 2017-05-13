@@ -1,1 +1,2 @@
-unshift!(LOAD_PATH, "$( ENV["HOME"] )/tkluck-maths/lib/julia")
+DIR=dirname(dirname(realpath(expanduser(("~/.juliarc.jl")))))
+unshift!(LOAD_PATH, "$DIR/lib/julia")
