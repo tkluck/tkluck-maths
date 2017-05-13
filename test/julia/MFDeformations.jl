@@ -15,6 +15,8 @@ using Base.Test
     dQ, dQ_even, dQ_odd = diff(Q)
     H = H1(Q)
 
+    @test all(Q*h + h*Q == zero(h) for h in H)
+
     @test length(H) == 4
 
     A, (a,b,c,d) = polynomial_ring(Int, :a, :b, :c, :d)
