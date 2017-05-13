@@ -101,15 +101,24 @@ function deformation(Q, var_symbols...; max_order=20)
     if length(vars) != length(H)
         throw(ArgumentError("Need $( length(H) ) variables for this deformation"))
     end
-    Qs = [ w * h for (w,h) in zip(vars, H) ]
-    obs = []
-    Qdef = Q + sum(Qs)
+
+    Q1 = sum(w * h for (w,h) in zip(vars, H))
+    Qdef = Q1
     sumobs = zero(Q)
 
-    Qsq = Q^2
+    Qs = [Q1]
+    obs = []
+
+    to_vanish = (Q + Qdef)^2 - Q^2
 
     for ord = 2:max_order
         tic()
+        # it already vanishes up to (not including) ord; if it vanishes
+        # completely, we are done
+        if to_vanish == zero(to_vanish)
+            break
+        end
+
         N = length(Q)
         MC = sum(Q_i * Q_j for (Q_i, Q_j) in zip(Qs, reverse(Qs)))
         Q_next, obs_next = mapreduce(
@@ -118,22 +127,18 @@ function deformation(Q, var_symbols...; max_order=20)
             expansion(MC, var_symbols...)) do x
             w, MC_w = x
             Q_w, obs_w = lift_and_obstruction(dQ_even, -MC_w)
-            #minimal_groebner_basis(dQ_odd)
-            #Q_w,_ = reduce(Q_w, get(dQ_odd._image_basis))
             (w*Q_w, w*obs_w)
         end
+        to_vanish += Q_next^2 + Q_next*(Q + Qdef) + (Q + Qdef)*Q_next + obs_next
         push!(Qs, Q_next)
         push!(obs, obs_next)
         Qdef += Q_next
         sumobs += obs_next
 
-        if Qdef^2 - sumobs == Qsq
-            break
-        end
         println(STDERR, "Step $(ord): $( toq() )")
     end
 
-    return Qdef
+    return Q + Qdef
 
 end
 
