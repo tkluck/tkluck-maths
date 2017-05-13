@@ -1,9 +1,9 @@
 module MFDeformations
 
 using PolynomialRings: polynomial_ring, expansion
-using Polynomials: Polynomial, basering
-using Modules: HomspaceMorphism, kernel, span, lift_and_obstruction
-using Groebner: minimal_groebner_basis, reduce
+using PolynomialRings.Polynomials: Polynomial, basering
+using PolynomialRings.Modules: HomspaceMorphism, kernel, span, lift_and_obstruction
+using PolynomialRings.Groebner: minimal_groebner_basis, reduce
 
 
 function diff{P <: Polynomial}(Q::Matrix{P})
@@ -48,7 +48,7 @@ function colspan{R <:Number}(M::Matrix{R})
     return M
 end
 
-import Polynomials: Term, Monomial
+import PolynomialRings.Polynomials: Term, Monomial
 function H1{P <: Polynomial}(Q::Matrix{P})
     dQ, dQ_even, dQ_odd = diff(Q)
 

@@ -1,6 +1,6 @@
 using Base.Test
 using PolynomialRings: polynomial_ring
-using Groebner: reduce
+using PolynomialRings.Groebner: reduce
 
 @testset "Groebner" begin
 

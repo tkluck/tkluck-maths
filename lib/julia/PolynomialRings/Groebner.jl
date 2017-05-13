@@ -1,7 +1,7 @@
 module Groebner
 
-using Polynomials: Polynomial, _AbstractModuleElement, _AbstractModuleElementVector
-using Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, _ModuleElement
+using PolynomialRings.Polynomials: Polynomial, _AbstractModuleElement, _AbstractModuleElementVector
+using PolynomialRings.Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, _ModuleElement
 
 function reduce{P <: Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractModuleElementVector{P})
     factors = transpose(zeros(P, length(G)))

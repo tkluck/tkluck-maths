@@ -1,7 +1,7 @@
 module Modules
 
-using Polynomials: Polynomial
-import Groebner: reduce, minimal_groebner_basis, syzygies, groebner_basis
+using PolynomialRings.Polynomials: Polynomial
+import PolynomialRings.Groebner: reduce, minimal_groebner_basis, syzygies, groebner_basis
 
 export ModuleMorphism, HomspaceMorphism, lift, kernel, lift_and_obstruction
 

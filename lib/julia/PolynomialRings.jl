@@ -1,6 +1,10 @@
 module PolynomialRings
 
-import Polynomials: Polynomial, Term, Monomial, variables
+include("PolynomialRings/Polynomials.jl")
+include("PolynomialRings/Groebner.jl")
+include("PolynomialRings/Modules.jl")
+
+import PolynomialRings.Polynomials: Polynomial, Term, Monomial, variables
 
 import Iterators: groupby
 

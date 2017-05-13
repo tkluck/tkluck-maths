@@ -1,6 +1,6 @@
 using Base.Test
 using PolynomialRings: polynomial_ring
-using Modules: ModuleMorphism, lift, kernel
+using PolynomialRings.Modules: ModuleMorphism, lift, kernel
 
 @testset "Modules" begin
 
