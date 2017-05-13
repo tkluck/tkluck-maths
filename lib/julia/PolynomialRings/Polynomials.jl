@@ -121,6 +121,64 @@ function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
     return Polynomial{S, NumVars,T}(res)
 end
 
+# ------------------------------------------------------
+# utility iteration for iterating over a 2-dimensional cartesian product
+# in the following pattern:
+#
+#  1  3  6 10
+#  2  5  9 13
+#  4  8 12 15
+#  7 11 14 16
+#
+# i.e. in diagonals. The usefulness for polynomial multiplication is that the
+# terms on both axes are sorted by total degree, so on the diagonal, we can hope
+# to have similar total degrees of the products of the terms. That means that the
+# sort step that immediately follows has less sorting to do.
+#
+# The result is a very big win, as it turns out that the sorting is a major bottleneck
+# for the kind of workload I currently have.
+immutable DiagonalIterState
+    start_row::Int
+    diagonal_index::Int
+end
+
+immutable DiagonalIter{A <: AbstractArray, B <: AbstractArray}
+    rows::A
+    cols::B
+end
+
+import Base: start, next, done, eltype, length
+start{D <: DiagonalIter}(x::D)= DiagonalIterState(0,0)
+function next{A <: AbstractArray, B <: AbstractArray}(x::DiagonalIter{A,B}, state::DiagonalIterState)::Tuple{ Tuple{eltype(A),eltype(B)}, DiagonalIterState }
+    next_diag_index = state.diagonal_index + 1
+    next_start_row = state.start_row
+
+    tentative_next_row = next_start_row - next_diag_index
+    tentative_next_col = 1 + next_diag_index
+
+    if tentative_next_row < 1 || tentative_next_col > length(x.cols)
+        next_start_row = state.start_row + 1
+
+        if next_start_row > length(x.rows)
+            next_diag_index = next_start_row - length(x.rows)
+        else
+            next_diag_index = 0
+        end
+
+    end
+
+    a = x.rows[next_start_row - next_diag_index]
+    b = x.cols[1 + next_diag_index]
+    item = (a,b)
+    next_state = DiagonalIterState(next_start_row, next_diag_index)
+    return item, next_state
+end
+done{D <: DiagonalIter}(x::D, state::DiagonalIterState)= length(x.rows) == 0 || length(x.cols) == 0 || state.start_row >= length(x.rows) + length(x.cols) - 1
+eltype{A <: AbstractArray, B <: AbstractArray}(::Type{DiagonalIter{A,B}}) = Tuple{eltype(A), eltype(B)}
+length{D <: DiagonalIter}(x::D)= length(x.rows) * length(x.cols)
+# end of utility iterator
+# ------------------------------------------------------
+
 function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R2,NumVars,T})
     S = promote_type(R1,R2)
     res = Vector{ Term{S, NumVars} }()
@@ -134,11 +192,9 @@ function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R
     #]
     summands = Vector{Term{S,NumVars}}(length(a.terms) * length(b.terms))
     ix = 1
-    for (exp_a, coeff_a) in a.terms
-        for (exp_b, coeff_b) in b.terms
-            summands[ix] = Term(exp_a + exp_b, coeff_a * coeff_b)
-            ix += 1
-        end
+    for ((exp_a,coeff_a),(exp_b,coeff_b)) in DiagonalIter(a.terms, b.terms)
+        summands[ix] = Term(exp_a + exp_b, coeff_a * coeff_b)
+        ix += 1
     end
     assert( ix == length(summands)+1)
     sort!(summands)
