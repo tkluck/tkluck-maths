@@ -1,6 +1,6 @@
 module Polynomials
 
-import Base: +,==,!=,*,//,-,convert,promote_rule,show,cmp,isless,zero
+import Base: +,==,!=,*,//,-,convert,promote_rule,show,cmp,isless,zero,eltype
 
 type Monomial{NumVars}
     e::NTuple{NumVars, Int}
@@ -42,6 +42,9 @@ end
 immutable Polynomial{R <: Number, NumVars, T <: Tuple} <: Number
     terms::Vector{ Term{R, NumVars} }
 end
+
+basering{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = R
+basering{R <: Number, NumVars, T <: Tuple}(::Polynomial{R, NumVars, T}) = R
 
 num_variables{R<:Number, NumVars, T <: Tuple}(::Type{Polynomial{R,NumVars,T}}) = NumVars
 variables{R<:Number, NumVars, T<:Tuple}(::Type{Polynomial{R,NumVars,T}}) = ntuple(Val{NumVars}) do i

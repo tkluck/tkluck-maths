@@ -1,8 +1,11 @@
 check:
-	JULIA_LOAD_PATH="`pwd`/lib" /home/tkluck/.local/bin/julia -O3 test/MFDeformations.jl
-	JULIA_LOAD_PATH="`pwd`/lib" /home/tkluck/.local/bin/julia -O3 test/Modules.jl
-	JULIA_LOAD_PATH="`pwd`/lib" /home/tkluck/.local/bin/julia -O3 test/Groebner.jl
-	JULIA_LOAD_PATH="`pwd`/lib" /home/tkluck/.local/bin/julia -O3 test/PolynomialRings.jl
+	JULIA_LOAD_PATH="`pwd`/julia/lib" /home/tkluck/.local/bin/julia -O3 test/julia/MFDeformations.jl
+	JULIA_LOAD_PATH="`pwd`/julia/lib" /home/tkluck/.local/bin/julia -O3 test/julia/Modules.jl
+	JULIA_LOAD_PATH="`pwd`/julia/lib" /home/tkluck/.local/bin/julia -O3 test/julia/Groebner.jl
+	JULIA_LOAD_PATH="`pwd`/julia/lib" /home/tkluck/.local/bin/julia -O3 test/julia/PolynomialRings.jl
 
-try:
-	JULIA_LOAD_PATH="`pwd`/lib" /home/tkluck/.local/bin/julia -O3 ./matrices.jl
+mf:
+	JULIA_LOAD_PATH="`pwd`/julia/lib" /home/tkluck/.local/bin/julia -O3 ./matrices.jl
+
+push:
+	rsync -av --delete . 56861fef446d47f19213c4f066cb5ee4@compute4-us.sagemath.com:~/tkluck-maths
