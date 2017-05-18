@@ -2,7 +2,7 @@ module Polynomials
 
 import Base: +,==,!=,*,//,-,convert,promote_rule,show,cmp,isless,zero,eltype
 
-type Monomial{NumVars}
+immutable Monomial{NumVars}
     e::NTuple{NumVars, Int}
 end
 
@@ -20,10 +20,11 @@ end
 
 function cmp{M <: Monomial}(a::M, b::M)
     # degrevlex
-    if(sum(a.e) == sum(b.e))
+    degcmp = cmp(sum(a.e), sum(b.e))
+    if degcmp == 0
         return -cmp(a.e, b.e)
     else
-        return cmp(sum(a.e), sum(b.e))
+        return degcmp
     end
 end
 
@@ -197,7 +198,7 @@ function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R
         ix += 1
     end
     assert( ix == length(summands)+1)
-    sort!(summands)
+    sort!(summands, by=t -> t[1], alg=QuickSort)
 
     last_exp = Union{}
     for (exponent, coef) in summands
