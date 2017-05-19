@@ -96,6 +96,8 @@ function deformation(Q, var_symbols...; max_order=20)
 
     if length(var_symbols) == 0
         var_symbols = [ gensym() for _ in H ]
+    else
+        var_symbols = var_symbols[1:length(H)]
     end
     _, vars = polynomial_ring(Int, var_symbols...)
     if length(vars) < length(H)
