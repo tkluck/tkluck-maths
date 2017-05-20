@@ -51,8 +51,13 @@ end
 import PolynomialRings.Polynomials: Term, Monomial
 function H1{P <: Polynomial}(Q::Matrix{P})
     dQ, dQ_even, dQ_odd = diff(Q)
+    return H1(Q, dQ_even, dQ_odd)
+end
 
-    groeb,transformation = minimal_groebner_basis(span(dQ_odd))
+
+
+function H1{P <: Polynomial}(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P})
+    groeb,transformation = minimal_groebner_basis(dQ_odd)
 
     H1 = filter(kernel(dQ_even)) do k
         (k_red, factors) = reduce(k, groeb)
@@ -92,7 +97,7 @@ end
 
 function deformation(Q, var_symbols...; max_order=20)
     dQ, dQ_even, dQ_odd = diff(Q)
-    H = H1(Q)
+    H = H1(Q, dQ_even, dQ_odd)
 
     if length(var_symbols) == 0
         var_symbols = [ gensym() for _ in H ]
