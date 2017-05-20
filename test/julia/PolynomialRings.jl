@@ -30,5 +30,7 @@ using PolynomialRings: polynomial_ring, expansion
     @test [1+x; 1+y](x=1) == [2; 1+y]
     @test [1+x; 1+y](x=1, y=2) == [2; 3]
 
-
+    @test findfirst([x-x, x, x-x, 0, x]) == 2
+    @test findfirst([0, x, x-x, 0, x]) == 2
+    @test findfirst([0*x, x-x, 0, x]) == 4
 end
