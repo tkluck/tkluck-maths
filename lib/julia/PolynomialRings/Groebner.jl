@@ -124,7 +124,6 @@ function syzygies{P <: Polynomial}(polynomials::_AbstractModuleElementVector{P})
         end
     end
 
-    (result, _) = minimal_groebner_basis(result)
     flat_result = [ result[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
 
     return flat_result
