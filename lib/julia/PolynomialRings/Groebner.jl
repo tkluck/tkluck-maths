@@ -4,7 +4,7 @@ using PolynomialRings.Polynomials: Polynomial, _AbstractModuleElement, _Abstract
 using PolynomialRings.Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, _ModuleElement
 
 function reduce{P <: Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractModuleElementVector{P})
-    factors = transpose(zeros(P, length(G)))
+    factors = transpose(spzeros(P, length(G)))
     frst = true
     more_loops = false
     f_red = f
@@ -62,7 +62,8 @@ function groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVect
                 append!(pairs_to_consider, [(new_i, new_j) for new_i in eachindex(result)])
                 push!(result, S_red)
 
-                tr = [ sum(-f * transformation[x][y] for (x,f) in enumerate(factors)) for y in eachindex(polynomials) ]
+                nonzero_factors = find(factors)
+                tr = [ sum(-factors[x] * transformation[x][y] for x in nonzero_factors) for y in eachindex(polynomials) ]
                 push!(transformation, tr)
             end
         end
