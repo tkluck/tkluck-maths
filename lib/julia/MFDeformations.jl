@@ -34,11 +34,12 @@ function colspan{R <:Number}(M::Matrix{R})
     for j in indices(M, 2)
         for i in indices(M, 1)
             if M[i,j] != 0
-                pivot = findfirst(M[i,(j+1):end])
-                if pivot == 0
-                    break
+                for k=j+1:size(M,2)
+                    if M[i,k] != 0
+                        M[:,k] = M[i,k] * M[:,j] - M[i,j] * M[:,k]
+                    end
                 end
-                M[:,j] = M[i,pivot] * M[:,j] - M[i,j] * M[:,pivot]
+                break
             end
         end
     end
