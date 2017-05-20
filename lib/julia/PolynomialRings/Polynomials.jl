@@ -339,20 +339,29 @@ function _lead_div_with_remainder{R,NumVars}(f::Polynomial{R,NumVars}, g::Polyno
     end
 end
 
-_monomials{R, NumVars, T<:Tuple}(f::Polynomial{R, NumVars,T}) = reverse(f.terms)
+_monomials{P <: Polynomial}(f::P) = reverse(f.terms)
+_monomials{M <: Union{_HomModuleElement,_ModuleElement}}(x::M) = _MonomialsIter(x)
 
-function _monomials{R<:Number, NumVars,T<:Tuple}(f::_ModuleElement{Polynomial{R, NumVars,T}})
-    return [
-        _ModuleTerm{Term{R, NumVars}}(m, i)
-        for (i, f_i) in enumerate(f) for m in _monomials(f_i)
-    ]
+immutable _MonomialsIter{M <: Union{_HomModuleElement,_ModuleElement}}
+    f::M
 end
-
-function _monomials{R<:Number, NumVars, T<:Tuple}(f::_HomModuleElement{Polynomial{R, NumVars,T}})
-    return [
-        _ModuleTerm{Term{R, NumVars}}(m, i)
-        for (i, f_i) in enumerate(f) for m in _monomials(f_i)
-    ]
+start{M <: _MonomialsIter}(::M) = (1,0)
+function done{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
+    row, term = state
+    return row > length(x.f) || (
+        term == length(x.f[row].terms) && all(length(f_i.terms) == 0 for f_i in x.f[row+1:end])
+    )
+end
+function next{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
+    row, term = state
+    if term >= length(x.f[row].terms)
+        term = 0
+        row += 1
+        while length(x.f[row].terms) == 0
+            row += 1
+        end
+    end
+    return _ModuleTerm(x.f[row].terms[end-term], row), (row, term+1)
 end
 
 function _div_with_remainder{P <: Polynomial}(f::_AbstractModuleElement{P}, g::_AbstractModuleElement{P})::Tuple{Nullable{P}, _AbstractModuleElement{P}}
