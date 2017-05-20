@@ -340,7 +340,7 @@ start{M <: _MonomialsIter}(::M) = (1,0)
 function done{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
     row, term = state
     return row > length(x.f) || (
-        term == length(x.f[row].terms) && all(length(f_i.terms) == 0 for f_i in x.f[row+1:end])
+        term == length(x.f[row].terms) && all(length(x.f[i].terms) == 0 for i in (row+1):length(x.f))
     )
 end
 function next{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
