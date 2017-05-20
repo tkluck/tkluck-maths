@@ -248,22 +248,13 @@ end
 *{R<:Number, NumVars,T<:Tuple}(x::_HomModuleElement{Polynomial{R, NumVars,T}}, a::Term{R, NumVars})= convert(Polynomial{R,NumVars,T}, a) * x
 *{R<:Number, NumVars,T<:Tuple}(a::Term{R, NumVars}, x::_HomModuleElement{Polynomial{R, NumVars,T}})= convert(Polynomial{R,NumVars,T}, a) * x
 
-function leading_term{P<:Polynomial}(a::_ModuleElement{P})
-    for (i, f_i) in enumerate(a)
-        if !iszero(f_i)
-            return _ModuleTerm(leading_term(f_i), i)
-        end
+function leading_term{M <: Union{_HomModuleElement,_ModuleElement}}(a::M)
+    i = findfirst(x->!iszero(x), a)
+    if i>0
+        return _ModuleTerm(leading_term(a[i]), i)
+    else
+        throw(ArgumentError("The zero element $( a ) does not have a leading term"))
     end
-    throw(ArgumentError("The zero element $( a ) does not have a leading term"))
-end
-
-function leading_term{P<:Polynomial}(a::_HomModuleElement{P})
-    for (i, f_i) in enumerate(a)
-        if !iszero(f_i)
-            return _ModuleTerm(leading_term(f_i), i)
-        end
-    end
-    throw(ArgumentError("The zero element $( a ) does not have a leading term"))
 end
 
 function _lcm_multipliers{NumVars}(a::Monomial{NumVars}, b::Monomial{NumVars})
