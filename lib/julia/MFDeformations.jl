@@ -127,9 +127,9 @@ function deformation(Q, var_symbols...; max_order=20)
         tic()
         # it already vanishes up to (not including) ord; if it vanishes
         # completely, we are done
-        if to_vanish == zero(to_vanish)
-            break
-        end
+        #if to_vanish == zero(to_vanish)
+        #    break
+        #end
 
         N = length(Q)
         MC = sum(Q_i * Q_j for (Q_i, Q_j) in zip(Qs, reverse(Qs)))
@@ -141,7 +141,7 @@ function deformation(Q, var_symbols...; max_order=20)
             Q_w, obs_w = lift_and_obstruction(dQ_even, -MC_w)
             (w*Q_w, w*obs_w)
         end
-        to_vanish += Q_next^2 + Q_next*(Q + Qdef) + (Q + Qdef)*Q_next + obs_next
+        #to_vanish += Q_next^2 + Q_next*(Q + Qdef) + (Q + Qdef)*Q_next + obs_next
         push!(Qs, Q_next)
         push!(obs, obs_next)
         Qdef += Q_next
