@@ -18,6 +18,58 @@ function +{NumVars}(a::Monomial{NumVars}, b::Monomial{NumVars})
     )
 end
 
+macro myplus(numvars)
+    expr = :( tuple() )
+    for i=1:numvars
+        push!(expr.args, :( a.e[$i] + b.e[$i] ))
+    end
+    return quote
+        Monomial{$numvars}($expr)
+    end
+end
+
++(a::Monomial{1}, b::Monomial{1}) = @myplus 1
++(a::Monomial{2}, b::Monomial{2}) = @myplus 2
++(a::Monomial{3}, b::Monomial{3}) = @myplus 3
++(a::Monomial{4}, b::Monomial{4}) = @myplus 4
++(a::Monomial{5}, b::Monomial{5}) = @myplus 5
++(a::Monomial{6}, b::Monomial{6}) = @myplus 6
++(a::Monomial{7}, b::Monomial{7}) = @myplus 7
++(a::Monomial{8}, b::Monomial{8}) = @myplus 8
++(a::Monomial{9}, b::Monomial{9}) = @myplus 9
++(a::Monomial{10}, b::Monomial{10}) = @myplus 10
++(a::Monomial{11}, b::Monomial{11}) = @myplus 11
++(a::Monomial{12}, b::Monomial{12}) = @myplus 12
++(a::Monomial{13}, b::Monomial{13}) = @myplus 13
++(a::Monomial{14}, b::Monomial{14}) = @myplus 14
++(a::Monomial{15}, b::Monomial{15}) = @myplus 15
++(a::Monomial{16}, b::Monomial{16}) = @myplus 16
++(a::Monomial{17}, b::Monomial{17}) = @myplus 17
++(a::Monomial{18}, b::Monomial{18}) = @myplus 18
++(a::Monomial{19}, b::Monomial{19}) = @myplus 19
++(a::Monomial{20}, b::Monomial{20}) = @myplus 20
++(a::Monomial{21}, b::Monomial{21}) = @myplus 21
++(a::Monomial{22}, b::Monomial{22}) = @myplus 22
++(a::Monomial{23}, b::Monomial{23}) = @myplus 23
++(a::Monomial{24}, b::Monomial{24}) = @myplus 24
++(a::Monomial{25}, b::Monomial{25}) = @myplus 25
++(a::Monomial{26}, b::Monomial{26}) = @myplus 26
++(a::Monomial{27}, b::Monomial{27}) = @myplus 27
++(a::Monomial{28}, b::Monomial{28}) = @myplus 28
++(a::Monomial{29}, b::Monomial{29}) = @myplus 29
++(a::Monomial{30}, b::Monomial{30}) = @myplus 30
++(a::Monomial{31}, b::Monomial{31}) = @myplus 31
++(a::Monomial{32}, b::Monomial{32}) = @myplus 32
++(a::Monomial{33}, b::Monomial{33}) = @myplus 33
++(a::Monomial{34}, b::Monomial{34}) = @myplus 34
++(a::Monomial{35}, b::Monomial{35}) = @myplus 35
++(a::Monomial{36}, b::Monomial{36}) = @myplus 36
++(a::Monomial{37}, b::Monomial{37}) = @myplus 37
++(a::Monomial{38}, b::Monomial{38}) = @myplus 38
++(a::Monomial{39}, b::Monomial{39}) = @myplus 39
++(a::Monomial{40}, b::Monomial{40}) = @myplus 40
+
+
 function cmp{M <: Monomial}(a::M, b::M)
     # degrevlex
     degcmp = cmp(sum(a.e), sum(b.e))
