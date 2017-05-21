@@ -74,7 +74,13 @@ function cmp{M <: Monomial}(a::M, b::M)
     # degrevlex
     degcmp = cmp(sum(a.e), sum(b.e))
     if degcmp == 0
-        return -cmp(a.e, b.e)
+        for i = length(a.e):-1:1
+            varcmp = cmp(a.e[i], b.e[i])
+            if varcmp != 0
+                return -varcmp
+            end
+        end
+        return 0
     else
         return degcmp
     end
