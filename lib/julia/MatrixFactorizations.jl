@@ -67,7 +67,7 @@ Dk_1(k::Integer, l::Integer) = begin
 end
 
 E6_1() = begin
-    A, (x,y,z) = polynomial_ring(Rational{Int}, :x, :y, :z)
+    A, (x,y,z) = polynomial_ring(Int, :x, :y, :z)
 
     q1 = [-z 0 x^2 y^3; 0 -z y -x; x y^3 z 0; y -x^2 0 z]
     q0 = q1
@@ -77,7 +77,7 @@ E6_1() = begin
 end
 
 E7_3() = begin
-    A, (x,y,z) = polynomial_ring(Rational{BigInt}, :x, :y, :z)
+    A, (x,y,z) = polynomial_ring(Rational{Int}, :x, :y, :z)
 
     q1 = [-z 0 x*y -y^2 0 0 x^2 0;
           0 -z 0 y^2 0 0 0 x;
