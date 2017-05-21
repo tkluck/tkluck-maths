@@ -17,10 +17,10 @@ using Base.Test
 
     @test all(Q*h + h*Q == zero(h) for h in H)
 
-    @test length(H) == 5
+    @test length(H) == 4
 
-    A, (a,b,c,d,e) = polynomial_ring(Int, :a, :b, :c, :d, :e)
+    A, (a,b,c,d) = polynomial_ring(Int, :a, :b, :c, :d)
 
-    @test deformation(Q, :a, :b, :c, :d, :e)(a=0, b=0, c=0, d=0, e=0) == Q
+    @test deformation(Q, :a, :b, :c, :d)(a=0, b=0, c=0, d=0) == Q
 
 end

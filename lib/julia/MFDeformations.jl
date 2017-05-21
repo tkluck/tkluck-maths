@@ -60,9 +60,9 @@ end
 function H1{P <: Polynomial}(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P})
     groeb,transformation = minimal_groebner_basis(dQ_odd)
 
-    H1 = filter(kernel(dQ_even)) do k
+    H1 = map(kernel(dQ_even)) do k
         (k_red, factors) = reduce(k, groeb)
-        any(c != 0 for c in k_red)
+        k_red
     end
 
     finite_basis_set = Set(
@@ -87,8 +87,10 @@ function H1{P <: Polynomial}(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMo
     return map(1:size(N, 2)) do j
         h = zeros(P, size(Q))
         for (i,v) in enumerate(N[:, j])
-            j,e  = reverse_index[i]
-            h[j] += P([ Term(Monomial(e), v) ])
+            if v != 0
+                j,e  = reverse_index[i]
+                h[j] += P([ Term(Monomial(e), v) ])
+            end
         end
         h
     end
