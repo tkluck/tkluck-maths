@@ -424,41 +424,6 @@ function _div_with_remainder{P <: Polynomial}(f::_AbstractModuleElement{P}, g::_
     end
 end
 
-
-import Iterators: product
-
-function monomials_not_in_ideal{R <: Number, NumVars}(monomials::Vector{Polynomial{R, NumVars}})
-    vars = variables(Polynomial{R, NumVars})
-
-    degree_bounds = [0 for _ in vars]
-    for monom in monomials
-        exponent_tuple = monom.terms[1][1].e
-        variables_appearing = [(i,e) for (i,e) in enumerate(exponent_tuple) if e != 0]
-        if length(variables_appearing) == 1
-            (variable_index,variable_exp), = variables_appearing
-            if degree_bounds[ variable_index ] == 0
-                degree_bounds[ variable_index ] = variable_exp
-            elseif variable_exp < degree_bounds[ variable_index ]
-                degree_bounds[ variable_index ] = variable_exp
-            end
-        end
-    end
-    if any(b == 0 for b in degree_bounds)
-        throw(ArgumentError("monomials_not_in_ideal: result is not a finite set"))
-    end
-
-    result = eltype(monomials)[]
-    for p in product([0:(b-1) for b in degree_bounds]...)
-        m = prod(v^p[i] for (i,v) in enumerate(vars))
-        if !any(!isnull(_monomial_div(m.terms[1], d.terms[1])) for d in monomials)
-            push!(result, m)
-        end
-    end
-    return result
-
-end
-
-
 function random_polynomial()
     res = sum([ rand(0:100) * x^i for i = 0:10 ])
 end
