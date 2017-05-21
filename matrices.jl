@@ -11,9 +11,8 @@ println("Finding deformations for:")
 Q = T2()
 display(Q); println()
 
-A, (t,u,v) = polynomial_ring(Int, :t, :u, :v)
-
-Qdef =deformation(Q, :t, :u, :v)
+symbols = [Symbol("W$i") for i=1:40]
+Qdef =deformation(Q, symbols...)
 println("Deformation is:")
 display(Qdef); println()
 println("which squares to:")
