@@ -68,7 +68,7 @@ function groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVect
         end
     end
 
-    flat_tr = [ transformation[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
+    flat_tr = sparse([ transformation[x][y] for x=eachindex(result), y=eachindex(polynomials) ])
 
     return result, flat_tr
 
