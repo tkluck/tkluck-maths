@@ -1,7 +1,7 @@
 module Modules
 
 using PolynomialRings.Polynomials: Polynomial
-import PolynomialRings.Groebner: reduce, minimal_groebner_basis, syzygies, groebner_basis
+import PolynomialRings.Groebner: reduce, groebner_basis, syzygies
 
 export ModuleMorphism, HomspaceMorphism, lift, kernel, lift_and_obstruction
 
@@ -42,7 +42,7 @@ function unflatten(F::HomspaceMorphism, coefficients)
 end
 function lift{P <: Polynomial}(F::ModuleMorphism{P}, x::Vector{P})::Nullable{Vector{P}}
 
-    (basis, transformation) = minimal_groebner_basis(span(F))
+    (basis, transformation) = groebner_basis(span(F))
     (x_red, factors) = reduce(x, basis)
 
     if any(x_i != 0 for x_i in x_red)
@@ -54,7 +54,7 @@ end
 
 function lift_and_obstruction{P <: Polynomial}(F::HomspaceMorphism{P}, x::Matrix{P})
 
-    (basis, transformation) = minimal_groebner_basis(F)
+    (basis, transformation) = groebner_basis(F)
     (x_red, factors) = reduce(x, basis)
 
     return unflatten(F, factors * transformation), x_red
@@ -73,7 +73,7 @@ end
 
 function lift{P <: Polynomial}(F::Vector{P}, x::P)::Nullable{Matrix{P}}
 
-    (basis, transformation) = minimal_groebner_basis(F)
+    (basis, transformation) = groebner_basis(F)
     (x_red, factors) = reduce(x, basis)
 
     if x_red != 0
@@ -85,7 +85,7 @@ function lift{P <: Polynomial}(F::Vector{P}, x::P)::Nullable{Matrix{P}}
 end
 
 function kernel{P <: Polynomial}(F::ModuleMorphism{P})
-    (basis, transformation) = minimal_groebner_basis(span(F))
+    (basis, transformation) = groebner_basis(span(F))
     S = syzygies(basis)
 
     coefficients = S * transformation
@@ -94,9 +94,9 @@ function kernel{P <: Polynomial}(F::ModuleMorphism{P})
 
 end
 
-function minimal_groebner_basis(F::HomspaceMorphism)
+function groebner_basis(F::HomspaceMorphism)
     if isnull(F._image_basis)
-        basis, transformation = minimal_groebner_basis(span(F))
+        basis, transformation = groebner_basis(span(F))
         F._image_basis = basis
         F._image_basis_transformation = transformation
     end
@@ -104,7 +104,7 @@ function minimal_groebner_basis(F::HomspaceMorphism)
 end
 
 function kernel{P <: Polynomial}(F::HomspaceMorphism{P})
-    basis, transformation = minimal_groebner_basis(F)
+    basis, transformation = groebner_basis(F)
     S = syzygies(basis)
 
     coefficients = S * transformation
@@ -116,7 +116,7 @@ function kernel{P <: Polynomial}(F::HomspaceMorphism{P})
 end
 
 function cokernel_basis{P <: Polynomial}(F::Morphism{P})
-    (basis, transformation) = minimal_groebner_basis(span(F))
+    (basis, transformation) = groebner_basis(span(F))
     leading_terms = [leading_term(f) for f in basis]
 
 end

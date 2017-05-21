@@ -28,8 +28,9 @@ end
 
 function groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVector{P})
 
-    result = copy(polynomials)
-    transformation =[ P[ i==j ? 1 : 0 for i in eachindex(polynomials)] for j in eachindex(polynomials)]
+    nonzero_indices = find(p->!iszero(p), polynomials)
+    result = polynomials[nonzero_indices]
+    transformation =[ P[ i==nonzero_indices[j] ? 1 : 0 for i in eachindex(polynomials)] for j in eachindex(result)]
     pairs_to_consider = [
         (i,j) for i in eachindex(result) for j in eachindex(result) if i < j
     ]
@@ -38,9 +39,7 @@ function groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVect
         (i,j) = pop!(pairs_to_consider)
         a = result[i]
         b = result[j]
-        if iszero(a) || iszero(b)
-            continue
-        end
+
         lt_a = leading_term(a)
         lt_b = leading_term(b)
 
@@ -72,22 +71,6 @@ function groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVect
     flat_tr = [ transformation[x][y] for x=eachindex(result), y=eachindex(polynomials) ]
 
     return result, flat_tr
-end
-
-function minimal_groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVector{P})
-
-    (basis, transformation) = groebner_basis(polynomials)
-
-    redundant = Set{Int}()
-    for i in eachindex(basis)
-        #(p_red, factors) = reduce(basis[i], [b for (j,b) in enumerate(basis) if j!=i && !(j in redundant)])
-        if iszero(basis[i])
-            push!(redundant, i)
-        end
-    end
-
-    necessary = [ i for i in eachindex(basis) if !(i in redundant) ]
-    return basis[ necessary ], transformation[ necessary, : ]
 
 end
 
