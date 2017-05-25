@@ -149,7 +149,8 @@ iszero{P <: Polynomial}(p::AbstractArray{P}) = all(iszero(p_i) for p_i in p)
 
 function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T})
     S = promote_type(R1, R2)
-    res = Vector{ Term{S, NumVars} }()
+    res = Vector{ Term{S, NumVars} }(length(a.terms) + length(b.terms))
+    n = 0
 
     state_a = start(a.terms)
     state_b = start(b.terms)
@@ -158,24 +159,29 @@ function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
         ((exponent_b, coefficient_b), next_state_b) = next(b.terms, state_b)
 
         if exponent_a < exponent_b
-            push!(res, Term(exponent_a, coefficient_a))
+            res[n+=1] = Term(exponent_a, coefficient_a)
             state_a = next_state_a
         elseif exponent_b < exponent_a
-            push!(res, Term(exponent_b, coefficient_b))
+            res[n+=1] = Term(exponent_b, coefficient_b)
             state_b = next_state_b
         else
             coeff = coefficient_a + coefficient_b
             if coeff != 0
-                push!(res, Term(exponent_a, coeff))
+                res[n+=1] = Term(exponent_a, coeff)
             end
             state_b = next_state_b
             state_a = next_state_a
         end
     end
 
-    append!(res, collect(rest(a.terms, state_a)))
-    append!(res, collect(rest(b.terms, state_b)))
+    for t in rest(a.terms, state_a)
+        res[n+=1] = t
+    end
+    for t in rest(b.terms, state_b)
+        res[n+=1] = t
+    end
 
+    resize!(res, n)
     return Polynomial{S, NumVars,T}(res)
 end
 
