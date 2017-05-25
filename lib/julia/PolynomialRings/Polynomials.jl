@@ -95,6 +95,33 @@ typealias Term{R<:Number, NumVars} Tuple{Monomial{NumVars},R}
 Term{R<:Number,NumVars}(m::Monomial{NumVars},r::R) = Term((m,r))
 coefficient{R,NumVars}(a::Term{R, NumVars})::R = a[2]
 
+fieldtypes{T <: Tuple}(t::Type{T}) = Symbol[fieldtype(T, i) for i in 1:nfields(T)]
+import PolynomialRings
+function termmul{T1 <: Term, T2 <: Term, Vars1 <: Tuple, Vars2 <: Tuple}(a::T1, b::T2, ::Type{Vars1}, ::Type{Vars2})
+
+    all_names = Set()
+    union!(all_names, fieldtypes(Vars1))
+    union!(all_names, fieldtypes(Vars2))
+    names = sort(collect(Symbol(s) for s in all_names))
+    Vars = Tuple{names...}
+    NumVars = length(all_names)
+
+    f = PolynomialRings._converter(Vars, Vars1, true)
+    g = PolynomialRings._converter(Vars, Vars2, true)
+
+    exp_a, coef_a = a
+    exp_b, coef_b = b
+    return Term(Monomial(f(exp_a.e)) + Monomial(g(exp_b.e)), coef_a*coef_b)
+
+end
+
+function termmul{T <: Term, Vars <: Tuple}(a::T, b::T, ::Type{Vars}, ::Type{Vars})
+    exp_a, coef_a = a
+    exp_b, coef_b = b
+    Term(exp_a + exp_b, coef_a * coef_b)
+end
+
+
 function //{R,NumVars,S}(a::Term{R, NumVars}, b::S)
     exponent, coeff = a
     T = promote_type(R,S)
@@ -106,7 +133,11 @@ immutable Polynomial{R <: Number, NumVars, T <: Tuple} <: Number
 end
 
 basering{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = R
-basering{R <: Number, NumVars, T <: Tuple}(::Polynomial{R, NumVars, T}) = R
+basering{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = R
+termtype{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = Term{R, NumVars}
+termtype{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = Term{R, NumVars}
+_varsymbols{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = T
+_varsymbols{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = T
 
 num_variables{R<:Number, NumVars, T <: Tuple}(::Type{Polynomial{R,NumVars,T}}) = NumVars
 variables{R<:Number, NumVars, T<:Tuple}(::Type{Polynomial{R,NumVars,T}}) = ntuple(Val{NumVars}) do i
@@ -251,8 +282,9 @@ length{D <: DiagonalIter}(x::D)= length(x.rows) * length(x.cols)
 # end of utility iterator
 # ------------------------------------------------------
 
-function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R2,NumVars,T})
-    S = promote_type(R1,R2)
+function  *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
+    PP = promote_type(typeof(a), typeof(b))
+    S = basering(PP)
 
     # the following seems to be implemented through a very naive version
     # of push! that does a reallocation at every step. So implement
@@ -261,13 +293,12 @@ function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R
     #    Term(exp_a + exp_b, coeff_a * coeff_b)
     #    for (exp_a, coeff_a) in a.terms for (exp_b, coeff_b) in b.terms
     #]
-    summands = Vector{Term{S,NumVars}}(length(a.terms) * length(b.terms))
-    ix = 1
-    for ((exp_a,coeff_a),(exp_b,coeff_b)) in DiagonalIter(a.terms, b.terms)
-        summands[ix] = Term(exp_a + exp_b, coeff_a * coeff_b)
-        ix += 1
+    summands = Vector{termtype(PP)}(length(a.terms) * length(b.terms))
+    ix = 0
+    for (t1, t2) in DiagonalIter(a.terms, b.terms)
+        summands[ix+=1] = termmul(t1, t2, _varsymbols(P1), _varsymbols(P2))
     end
-    assert( ix == length(summands)+1)
+    assert( ix == length(summands))
     sort!(summands, by=t -> t[1], alg=QuickSort)
 
     if length(summands) > 0
@@ -286,7 +317,7 @@ function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R
         resize!(summands, n)
         filter!(m -> coefficient(m) != 0, summands)
     end
-    return Polynomial{S, NumVars,T}(summands)
+    return PP(summands)
 end
 
 -{P <: Polynomial}(f::P) = P([Term(exponent, -coeff) for (exponent, coeff) in f.terms])

@@ -48,7 +48,6 @@ end
 
 import Base: promote_rule, promote_type, convert
 
-_symname(s::Symbol)=repr(s)[2:end]
 fieldtypes{T <: Tuple}(t::Type{T}) = Symbol[fieldtype(T, i) for i in 1:nfields(T)]
 import Base: convert, promote_rule
 function promote_rule{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
