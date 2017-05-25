@@ -140,10 +140,14 @@ function expansion{P <: Polynomial}(x::P, vars::Symbol...)
     g = _converter(Tuple{other_vars...}, T, false)
 
     res = []
-    keyfunc = t -> repr(f(t[1].e))
-    for terms in groupby(keyfunc, sort(x.terms, by=keyfunc))
-        p = sum( Polynomial{R, length(other_vars), Tuple{other_vars...}}([ Term(Monomial(g(t[1].e)),       t[2]  )]) for t in terms )
-        w =      Polynomial{R, length(vars),       Tuple{vars...}      }([ Term(Monomial(f(terms[1][1].e)),one(R))])
+    separated_terms = [(f(exp.e), g(exp.e), coeff) for (exp, coeff) in x.terms]
+    sort!(separated_terms, by=x->x[1])
+    for term_group in groupby(x->x[1], separated_terms)
+        w_term = Term(Monomial(term_group[1][1]), one(R))
+        p_terms = [Term(Monomial(t[2]), t[3]) for t in term_group]
+        sort!(p_terms, by=t->t[1])
+        w = Polynomial{R, length(vars),       Tuple{vars...}      }([ w_term ])
+        p = Polynomial{R, length(other_vars), Tuple{other_vars...}}(p_terms)
 
         push!(res, (w, p))
     end
