@@ -287,10 +287,11 @@ end
 
 typealias _ModuleElement{P <: Polynomial} Vector{P}
 typealias _HomModuleElement{P <: Polynomial} Matrix{P}
-typealias _AbstractModuleElement{P <: Polynomial} Union{P, _ModuleElement{P}, _HomModuleElement{P}}
-typealias _AbstractModuleElementVector{P <: Polynomial} Union{AbstractVector{P}, AbstractVector{_ModuleElement{P}}, AbstractVector{_HomModuleElement{P}}}
+typealias AbstractModuleElement{P <: Polynomial} Union{P, AbstractArray{P}}
 
 zero{P <: Polynomial}(a::AbstractVector{Vector{P}}) = [[0 for _ in a_i] for a_i in a]
+modulebasering{M <: Polynomial}(::Type{M}) = M
+modulebasering{M <: AbstractArray}(::Type{M}) = eltype(M)
 
 type _ModuleTerm{T <: Term}
     t::T
@@ -413,9 +414,9 @@ function next{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
     return _ModuleTerm(x.f[row].terms[end-term], row), (row, term+1)
 end
 
-function _div_with_remainder{P <: Polynomial}(f::_AbstractModuleElement{P}, g::_AbstractModuleElement{P})::Tuple{Nullable{P}, _AbstractModuleElement{P}}
+function _div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)::Tuple{Nullable{modulebasering(M)}, M}
     if iszero(f)
-        return zero(P), f
+        return zero(modulebasering(M)), f
     elseif iszero(g)
         return nothing, f
     else

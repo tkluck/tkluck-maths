@@ -1,10 +1,10 @@
 module Groebner
 
-using PolynomialRings.Polynomials: Polynomial, _AbstractModuleElement, _AbstractModuleElementVector
-using PolynomialRings.Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, _ModuleElement
+using PolynomialRings.Polynomials: Polynomial, AbstractModuleElement
+using PolynomialRings.Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, _ModuleElement, modulebasering
 
-function reduce{P <: Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractModuleElementVector{P})
-    factors = transpose(spzeros(P, length(G)))
+function reduce{M <: AbstractModuleElement}(f::M, G::AbstractArray{M})
+    factors = transpose(spzeros(modulebasering(M), length(G)))
     frst = true
     more_loops = false
     f_red = f
@@ -26,8 +26,9 @@ function reduce{P <: Polynomial}(f::_AbstractModuleElement{P}, G::_AbstractModul
     return f_red, factors
 end
 
-function groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVector{P})
+function groebner_basis{M <: AbstractModuleElement}(polynomials::AbstractVector{M})
 
+    P = modulebasering(M)
     nonzero_indices = find(p->!iszero(p), polynomials)
     result = polynomials[nonzero_indices]
     transformation =[ P[ i==nonzero_indices[j] ? 1 : 0 for i in eachindex(polynomials)] for j in eachindex(result)]
@@ -74,12 +75,12 @@ function groebner_basis{P <: Polynomial}(polynomials::_AbstractModuleElementVect
 
 end
 
-function syzygies{P <: Polynomial}(polynomials::_AbstractModuleElementVector{P})
+function syzygies{M <: AbstractModuleElement}(polynomials::AbstractVector{M})
     pairs_to_consider = [
         (i,j) for i in eachindex(polynomials) for j in eachindex(polynomials) if i < j
     ]
 
-    result = Vector{_ModuleElement{P}}()
+    result = Vector{Vector{modulebasering(M)}}()
 
     for (i,j) in pairs_to_consider
         a = polynomials[i]
