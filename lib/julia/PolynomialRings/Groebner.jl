@@ -32,9 +32,13 @@ function groebner_basis{M <: AbstractModuleElement}(polynomials::AbstractVector{
     nonzero_indices = find(p->!iszero(p), polynomials)
     result = polynomials[nonzero_indices]
     transformation =[ P[ i==nonzero_indices[j] ? 1 : 0 for i in eachindex(polynomials)] for j in eachindex(result)]
-    pairs_to_consider = [
-        (i,j) for i in eachindex(result) for j in eachindex(result) if i < j
-    ]
+    if length(result)>=1 # work around compiler bug for empty iterator
+        pairs_to_consider = [
+            (i,j) for i in eachindex(result) for j in eachindex(result) if i < j
+        ]
+    else
+        pairs_to_consider = Tuple{Int,Int}[]
+    end
 
     while length(pairs_to_consider) > 0
         (i,j) = pop!(pairs_to_consider)
