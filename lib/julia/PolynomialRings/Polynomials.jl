@@ -140,6 +140,8 @@ basering{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = 
 basering{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = R
 termtype{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = Term{R, NumVars}
 termtype{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = Term{R, NumVars}
+monomialtype{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = Monomial{NumVars}
+monomialtype{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = Monomial{NumVars}
 _varsymbols{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = T
 _varsymbols{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = T
 
