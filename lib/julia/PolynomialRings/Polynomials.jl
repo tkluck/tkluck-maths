@@ -250,7 +250,6 @@ length{D <: DiagonalIter}(x::D)= length(x.rows) * length(x.cols)
 
 function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R2,NumVars,T})
     S = promote_type(R1,R2)
-    res = Vector{ Term{S, NumVars} }()
 
     # the following seems to be implemented through a very naive version
     # of push! that does a reallocation at every step. So implement
@@ -268,18 +267,23 @@ function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R
     assert( ix == length(summands)+1)
     sort!(summands, by=t -> t[1], alg=QuickSort)
 
-    last_exp = Union{}
-    for (exponent, coef) in summands
-        if exponent == last_exp
-            _, cur_coef = res[end]
-            res[end] = Term(exponent, cur_coef + coef)
-        else
-            push!(res,  Term(exponent, coef))
-            last_exp = exponent
+    if length(summands) > 0
+        last_exp, _ = summands[1]
+        n = 1
+        for j in 2:length(summands)
+            exponent, coef = summands[j]
+            if exponent == last_exp
+                _, cur_coef = summands[n]
+                summands[n] = Term(exponent, cur_coef + coef)
+            else
+                summands[n+=1] = summands[j]
+                last_exp = exponent
+            end
         end
+        resize!(summands, n)
+        filter!(m -> coefficient(m) != 0, summands)
     end
-    filter!(m -> coefficient(m) != 0, res)
-    return Polynomial{S, NumVars,T}(res)
+    return Polynomial{S, NumVars,T}(summands)
 end
 
 -{P <: Polynomial}(f::P) = P([Term(exponent, -coeff) for (exponent, coeff) in f.terms])
