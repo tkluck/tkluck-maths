@@ -67,7 +67,7 @@ function groebner_basis{M <: AbstractModuleElement}(polynomials::AbstractVector{
                 push!(result, S_red)
 
                 nonzero_factors = find(factors)
-                tr = [ sum(-factors[x] * transformation[x][y] for x in nonzero_factors) for y in eachindex(polynomials) ]
+                tr = [ -sum(factors[x] * transformation[x][y] for x in nonzero_factors) for y in eachindex(polynomials) ]
                 push!(transformation, tr)
             end
         end
