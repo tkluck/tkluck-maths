@@ -1,7 +1,7 @@
 module Groebner
 
 using PolynomialRings.Polynomials: Polynomial, AbstractModuleElement
-using PolynomialRings.Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, _ModuleElement, modulebasering
+using PolynomialRings.Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, modulebasering
 
 function reduce{M <: AbstractModuleElement}(f::M, G::AbstractArray{M})
     factors = transpose(spzeros(modulebasering(M), length(G)))

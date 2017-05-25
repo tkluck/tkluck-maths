@@ -145,8 +145,7 @@ convert{S<:Polynomial}(::Type{S}, p::S) = p
 -{R,NumVars,T}(a::Polynomial{R,NumVars,T},b::Term{R,NumVars})=-(promote(a,b)...)
 
 iszero{P <: Polynomial}(p::P)= length(p.terms) == 0
-iszero{P <: Polynomial}(p::Vector{P}) = all(iszero(p_i) for p_i in p)
-iszero{P <: Polynomial}(p::Matrix{P}) = all(iszero(p_i) for p_i in p)
+iszero{P <: Polynomial}(p::AbstractArray{P}) = all(iszero(p_i) for p_i in p)
 
 function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T})
     S = promote_type(R1, R2)
@@ -285,29 +284,20 @@ function leading_term{P <: Polynomial}(p::P)
     end
 end
 
-typealias _ModuleElement{P <: Polynomial} Vector{P}
-typealias _HomModuleElement{P <: Polynomial} Matrix{P}
 typealias AbstractModuleElement{P <: Polynomial} Union{P, AbstractArray{P}}
-
-zero{P <: Polynomial}(a::AbstractVector{Vector{P}}) = [[0 for _ in a_i] for a_i in a]
 modulebasering{M <: Polynomial}(::Type{M}) = M
 modulebasering{M <: AbstractArray}(::Type{M}) = eltype(M)
 
-type _ModuleTerm{T <: Term}
+*{R<:Number, NumVars,T<:Tuple}(x::AbstractArray{Polynomial{R, NumVars,T}}, a::Term{R, NumVars})= eltype(x)[ x_i*a for x_i in x]
+*{R<:Number, NumVars,T<:Tuple}(a::Term{R, NumVars}, x::AbstractArray{Polynomial{R, NumVars,T}})= eltype(x)[ a*x_i for x_i in x]
+
+
+immutable _ModuleTerm{T <: Term}
     t::T
     pos::Int
 end
 
-*{P<:Polynomial}(a::P, x::_ModuleElement{P})= P[ a*x_i for x_i in x ]
-*{P<:Polynomial}(x::_ModuleElement{P}, ::P)= P[ a*x_i for x_i in x ]
-*{R<:Number, NumVars,T<:Tuple}(x::_ModuleElement{Polynomial{R, NumVars,T}}, a::Term{R, NumVars})= convert(Polynomial{R,NumVars,T}, a) * x
-*{R<:Number, NumVars,T<:Tuple}(a::Term{R, NumVars}, x::_ModuleElement{Polynomial{R, NumVars,T}})= convert(Polynomial{R,NumVars,T}, a) * x
-
-*{P<:Polynomial}(a::P, x::_HomModuleElement{P})= P[ a*x_i for x_i in x ]
-*{R<:Number, NumVars,T<:Tuple}(x::_HomModuleElement{Polynomial{R, NumVars,T}}, a::Term{R, NumVars})= convert(Polynomial{R,NumVars,T}, a) * x
-*{R<:Number, NumVars,T<:Tuple}(a::Term{R, NumVars}, x::_HomModuleElement{Polynomial{R, NumVars,T}})= convert(Polynomial{R,NumVars,T}, a) * x
-
-function leading_term{M <: Union{_HomModuleElement,_ModuleElement}}(a::M)
+function leading_term{P <: Polynomial}(a::AbstractArray{P})
     i = findfirst(x->!iszero(x), a)
     if i>0
         return _ModuleTerm(leading_term(a[i]), i)
@@ -390,10 +380,10 @@ function _lead_div_with_remainder{R,NumVars}(f::Polynomial{R,NumVars}, g::Polyno
 end
 
 _monomials{P <: Polynomial}(f::P) = reverse(f.terms)
-_monomials{M <: Union{_HomModuleElement,_ModuleElement}}(x::M) = _MonomialsIter(x)
-
-immutable _MonomialsIter{M <: Union{_HomModuleElement,_ModuleElement}}
+_monomials{P <: Polynomial}(x::AbstractArray{P}) = _MonomialsIter{P, typeof(x)}(x)
+immutable _MonomialsIter{P <: Polynomial, M <: AbstractArray}
     f::M
+    _MonomialsIter(f::AbstractArray{P}) = new(f)
 end
 start{M <: _MonomialsIter}(::M) = (1,0)
 function done{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
