@@ -273,7 +273,6 @@ end
 import Util: BoundedPriorityQueue, enqueue!, dequeue!, peek
 function *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
     PP = promote_type(typeof(a), typeof(b))
-    S = basering(PP)
 
     if iszero(a) || iszero(b)
         return zero(PP)
