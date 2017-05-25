@@ -388,9 +388,18 @@ end
 start{M <: _MonomialsIter}(::M) = (1,0)
 function done{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
     row, term = state
-    return row > length(x.f) || (
-        term == length(x.f[row].terms) && all(length(x.f[i].terms) == 0 for i in (row+1):length(x.f))
-    )
+    if row > length(x.f)
+        return true
+    end
+    if term < length(x.f[row].terms)
+        return false
+    end
+    for i in (row+1):length(x.f)
+        if length(x.f[i].terms) > 0
+            return false
+        end
+    end
+    return true
 end
 function next{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
     row, term = state
@@ -407,11 +416,14 @@ end
 function _div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)::Tuple{Nullable{modulebasering(M)}, M}
     if iszero(f)
         return zero(modulebasering(M)), f
-    elseif iszero(g)
-        return nothing, f
     else
+        lt_g = try
+            leading_term(g)
+        catch ArgumentError # g is zero
+            return nothing, f
+        end
         for monomial in _monomials(f)
-            maybe_factor = _monomial_div(monomial, leading_term(g))
+            maybe_factor = _monomial_div(monomial, lt_g)
             if !isnull(maybe_factor)
                 factor = get(maybe_factor)
                 return factor, f - g*factor
