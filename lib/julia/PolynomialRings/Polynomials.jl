@@ -264,65 +264,14 @@ function -{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
     return Polynomial{S, NumVars,T}(res)
 end
 
-# ------------------------------------------------------
-# utility iteration for iterating over a 2-dimensional cartesian product
-# in the following pattern:
-#
-#  1  3  6 10
-#  2  5  9 13
-#  4  8 12 15
-#  7 11 14 16
-#
-# i.e. in diagonals. The usefulness for polynomial multiplication is that the
-# terms on both axes are sorted by total degree, so on the diagonal, we can hope
-# to have similar total degrees of the products of the terms. That means that the
-# sort step that immediately follows has less sorting to do.
-#
-# The result is a very big win, as it turns out that the sorting is a major bottleneck
-# for the kind of workload I currently have.
-immutable DiagonalIterState
-    start_row::Int
-    diagonal_index::Int
-end
-
-immutable DiagonalIter{A <: AbstractArray, B <: AbstractArray}
-    rows::A
-    cols::B
-end
-
-import Base: start, next, done, eltype, length
-start{D <: DiagonalIter}(x::D)= DiagonalIterState(0,0)
-function next{A <: AbstractArray, B <: AbstractArray}(x::DiagonalIter{A,B}, state::DiagonalIterState)::Tuple{ Tuple{eltype(A),eltype(B)}, DiagonalIterState }
-    next_diag_index = state.diagonal_index + 1
-    next_start_row = state.start_row
-
-    tentative_next_row = next_start_row - next_diag_index
-    tentative_next_col = 1 + next_diag_index
-
-    if tentative_next_row < 1 || tentative_next_col > length(x.cols)
-        next_start_row = state.start_row + 1
-
-        if next_start_row > length(x.rows)
-            next_diag_index = next_start_row - length(x.rows)
-        else
-            next_diag_index = 0
-        end
-
+macro _enqueue_term(i,j)
+    quote
+        t = termmul(a.terms[$i], b.terms[$j], _varsymbols(P1), _varsymbols(P2))
+        enqueue!(minimal_corners, ($i,$j), t)
     end
-
-    a = x.rows[next_start_row - next_diag_index]
-    b = x.cols[1 + next_diag_index]
-    item = (a,b)
-    next_state = DiagonalIterState(next_start_row, next_diag_index)
-    return item, next_state
 end
-done{D <: DiagonalIter}(x::D, state::DiagonalIterState)= length(x.rows) == 0 || length(x.cols) == 0 || state.start_row >= length(x.rows) + length(x.cols) - 1
-eltype{A <: AbstractArray, B <: AbstractArray}(::Type{DiagonalIter{A,B}}) = Tuple{eltype(A), eltype(B)}
-length{D <: DiagonalIter}(x::D)= length(x.rows) * length(x.cols)
-# end of utility iterator
-# ------------------------------------------------------
-
-function  *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
+import Util: BoundedPriorityQueue, enqueue!, dequeue!, peek
+function *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
     PP = promote_type(typeof(a), typeof(b))
     S = basering(PP)
 
@@ -330,20 +279,34 @@ function  *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
         return zero(PP)
     end
 
-    # the following seems to be implemented through a very naive version
-    # of push! that does a reallocation at every step. So implement
-    # it manually below
-    #summands = [
-    #    Term(exp_a + exp_b, coeff_a * coeff_b)
-    #    for (exp_a, coeff_a) in a.terms for (exp_b, coeff_b) in b.terms
-    #]
     summands = Vector{termtype(PP)}(length(a.terms) * length(b.terms))
-    ix = 0
-    for (t1, t2) in DiagonalIter(a.terms, b.terms)
-        summands[ix+=1] = termmul(t1, t2, _varsymbols(P1), _varsymbols(P2))
+    k = 0
+
+    row_indices= zeros(Int, length(a.terms))
+    col_indices= zeros(Int, length(b.terms))
+
+    # using a bounded queue not to drop items when it gets too big, but to allocate it
+    # once to its maximal theoretical size and never reallocate.
+    minimal_corners = BoundedPriorityQueue{Tuple{Int, Int}, termtype(PP)}(min(length(a.terms), length(b.terms)))
+    @_enqueue_term(1,1)
+    @inbounds while length(minimal_corners)>0
+        # I don't understand the type inference breakage here, but making
+        # it explicit speeds things up
+        (row, col), t = peek(minimal_corners)::Pair{Tuple{Int,Int}, termtype(PP)}
+        dequeue!(minimal_corners)
+        summands[k+=1] = t
+        row_indices[row] = col
+        col_indices[col] = row
+        if row < length(a.terms) && row_indices[row+1] == col - 1
+            @_enqueue_term(row+1, col)
+        end
+        if col < length(b.terms) && col_indices[col+1] == row - 1
+            @_enqueue_term(row, col+1)
+        end
     end
-    assert( ix == length(summands))
-    sort!(summands, by=t -> t[1], alg=QuickSort)
+
+    assert(k == length(summands))
+    #assert(issorted(summands, by=t -> t[1]))
 
     if length(summands) > 0
         last_exp, _ = summands[1]
@@ -468,6 +431,7 @@ immutable _MonomialsIter{P <: Polynomial, M <: AbstractArray}
     f::M
     _MonomialsIter(f::AbstractArray{P}) = new(f)
 end
+import Base: start, next, done, eltype, length
 start{M <: _MonomialsIter}(::M) = (1,0)
 function done{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
     row, term = state
