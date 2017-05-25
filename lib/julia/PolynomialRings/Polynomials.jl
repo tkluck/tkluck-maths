@@ -147,7 +147,10 @@ convert{S<:Polynomial}(::Type{S}, p::S) = p
 iszero{P <: Polynomial}(p::P)= length(p.terms) == 0
 iszero{P <: Polynomial}(p::AbstractArray{P}) = all(iszero(p_i) for p_i in p)
 
-function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T})
++{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T}) = plusminus(a,b,+)
+-{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T}) = plusminus(a,b,-)
+
+function plusminus{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T}, op::Function)
     S = promote_type(R1, R2)
     res = Vector{ Term{S, NumVars} }(length(a.terms) + length(b.terms))
     n = 0
@@ -159,13 +162,13 @@ function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
         ((exponent_b, coefficient_b), next_state_b) = next(b.terms, state_b)
 
         if exponent_a < exponent_b
-            res[n+=1] = Term(exponent_a, coefficient_a)
+            res[n+=1] = Term(exponent_a, op(coefficient_a,0))
             state_a = next_state_a
         elseif exponent_b < exponent_a
-            res[n+=1] = Term(exponent_b, coefficient_b)
+            res[n+=1] = Term(exponent_b, op(0,coefficient_b))
             state_b = next_state_b
         else
-            coeff = coefficient_a + coefficient_b
+            coeff = op(coefficient_a, coefficient_b)
             if coeff != 0
                 res[n+=1] = Term(exponent_a, coeff)
             end
@@ -175,10 +178,12 @@ function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
     end
 
     for t in rest(a.terms, state_a)
-        res[n+=1] = t
+        (exp, c) = t
+        res[n+=1] = Term(exp, op(c,0))
     end
     for t in rest(b.terms, state_b)
-        res[n+=1] = t
+        (exp, c) = t
+        res[n+=1] = Term(exp, op(0,c))
     end
 
     resize!(res, n)
@@ -278,7 +283,6 @@ function  *{R1,R2,NumVars,T<:Tuple}(a::Polynomial{R1,NumVars,T}, b::Polynomial{R
 end
 
 -{P <: Polynomial}(f::P) = P([Term(exponent, -coeff) for (exponent, coeff) in f.terms])
--{P <: Polynomial}(a::P, b::P) = a + -b
 =={P <: Polynomial}(a::P, b::P) = a.terms == b.terms
 !={P <: Polynomial}(a::P, b::P) = !(a == b)
 
