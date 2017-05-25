@@ -95,6 +95,8 @@ typealias Term{R<:Number, NumVars} Tuple{Monomial{NumVars},R}
 Term{R<:Number,NumVars}(m::Monomial{NumVars},r::R) = Term((m,r))
 coefficient{R,NumVars}(a::Term{R, NumVars})::R = a[2]
 
+isless{T <: Term}(a::T, b::T) = cmp(a[1], b[1])<0
+
 fieldtypes{T <: Tuple}(t::Type{T}) = Symbol[fieldtype(T, i) for i in 1:nfields(T)]
 import PolynomialRings
 function termmul{T1 <: Term, T2 <: Term, Vars1 <: Tuple, Vars2 <: Tuple}(a::T1, b::T2, ::Type{Vars1}, ::Type{Vars2})
@@ -379,6 +381,8 @@ immutable _ModuleTerm{T <: Term}
     pos::Int
 end
 
+isless{M <: _ModuleTerm}(a::M, b::M) = a.pos > b.pos || a.t < b.t
+
 function leading_term{P <: Polynomial}(a::AbstractArray{P})
     i = findfirst(x->!iszero(x), a)
     if i>0
@@ -450,17 +454,6 @@ function _maybe_lcm_multipliers{M <: Term}(a::_ModuleTerm{M}, b::_ModuleTerm{M})
     end
 end
 
-function _lead_div_with_remainder{R,NumVars}(f::Polynomial{R,NumVars}, g::Polynomial{R,NumVars})::Tuple{Nullable{Polynomial{R,NumVars}}, Polynomial{R,NumVars}}
-    maybe_factor = _monomial_div(leading_term(f), leading_term(g))
-
-    if isnull(maybe_factor)
-        return nothing, f
-    else
-        factor = get(maybe_factor)
-        return factor, f - g*factor
-    end
-end
-
 _monomials{P <: Polynomial}(f::P) = reverse(f.terms)
 _monomials{P <: Polynomial}(x::AbstractArray{P}) = _MonomialsIter{P, typeof(x)}(x)
 immutable _MonomialsIter{P <: Polynomial, M <: AbstractArray}
@@ -513,6 +506,25 @@ function _div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)::Tuple{Null
         end
         return nothing, f
     end
+end
+
+function _lead_div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)::Tuple{Nullable{modulebasering(M)}, M}
+    lt_f = try
+        leading_term(f)
+    catch ArgumentError
+        return zero(modulebasering(M)), f
+    end
+    lt_g = try
+        leading_term(g)
+    catch ArgumentError # g is zero
+        return nothing, f
+    end
+    maybe_factor = _monomial_div(lt_f, lt_g)
+    if !isnull(maybe_factor)
+        factor = get(maybe_factor)
+        return factor, f - g*factor
+    end
+    return nothing, f
 end
 
 function random_polynomial()

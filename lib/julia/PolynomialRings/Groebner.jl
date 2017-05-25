@@ -1,25 +1,45 @@
 module Groebner
 
 using PolynomialRings.Polynomials: Polynomial, AbstractModuleElement
-using PolynomialRings.Polynomials: _div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, modulebasering
+using PolynomialRings.Polynomials: _div_with_remainder, _lead_div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, modulebasering
 
 function reduce{M <: AbstractModuleElement}(f::M, G::AbstractArray{M})
     factors = transpose(spzeros(modulebasering(M), length(G)))
     frst = true
     more_loops = false
     f_red = f
-    while frst || more_loops
+    # first, reduce as much as possible using lead division
+    i = 1
+    while i<=length(G)
         frst = false
         more_loops = false
-        for (i, g) in enumerate(G)
-            q, f_red = _div_with_remainder(f_red, g)
-            if !isnull(q)
-                factors[1, i] += get(q)
-                more_loops = true
-            end
-            if iszero(f_red)
-                return f_red, factors
-            end
+        g = G[i]
+        q, f_red = _lead_div_with_remainder(f_red, g)
+        if !isnull(q)
+            factors[1, i] += get(q)
+            i = 1
+        else
+            i += 1
+        end
+        if iszero(f_red)
+            return f_red, factors
+        end
+    end
+    # then, try to reduce away the non-lead terms
+    i = 1
+    while i<=length(G)
+        frst = false
+        more_loops = false
+        g = G[i]
+        q, f_red = _div_with_remainder(f_red, g)
+        if !isnull(q)
+            factors[1, i] += get(q)
+            i = 1
+        else
+            i += 1
+        end
+        if iszero(f_red)
+            return f_red, factors
         end
     end
 
@@ -72,6 +92,10 @@ function groebner_basis{M <: AbstractModuleElement}(polynomials::AbstractVector{
             end
         end
     end
+
+    sorted = sortperm(result, by=p->leading_term(p), rev=true)
+    result = result[sorted]
+    transformation = transformation[sorted]
 
     flat_tr = sparse([ transformation[x][y] for x=eachindex(result), y=eachindex(polynomials) ])
 
