@@ -4,7 +4,7 @@ include("PolynomialRings/Polynomials.jl")
 include("PolynomialRings/Groebner.jl")
 include("PolynomialRings/Modules.jl")
 
-import PolynomialRings.Polynomials: Polynomial, Term, Monomial, variables
+import PolynomialRings.Polynomials: Polynomial, Term, Monomial, variables, _varsymbols, basering
 
 import Iterators: groupby
 
@@ -125,16 +125,15 @@ function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: 
     return Polynomial{R, NumVars1, T}(new_terms)
 end
 
-function expansion{R <: Number, NumVars, T <: Tuple}(
-        x::Polynomial{R, NumVars, T},
-        vars::Symbol...
-    )
+function expansion{P <: Polynomial}(x::P, vars::Symbol...)
     if length(vars) == 0
         throw(ArgumentError("Need to pass at least one variable for expansion"))
     end
+    R = basering(P)
+    T = _varsymbols(P)
     other_vars = Symbol[fieldtype(T, i) for i in 1:nfields(T) if !(fieldtype(T,i) in vars)]
     if length(other_vars) == 0
-        return [ (Polynomial([Term(Monomial(term[1].e, one(R)))]), term[2]) for term in x.terms ]
+        return [ (Polynomial([Term(Monomial(exp.e), one(R))]), coef) for (exp, coef) in x.terms ]
     end
 
     f = _converter(Tuple{vars...},       T, false)
@@ -153,10 +152,7 @@ function expansion{R <: Number, NumVars, T <: Tuple}(
 
 end
 
-function expansion{R <: Number, NumVars, T <: Tuple}(
-        a::Array{Polynomial{R, NumVars, T}},
-        vars::Symbol...
-    )
+function expansion{P <: Polynomial}(a::AbstractArray{P}, vars::Symbol...)
     array_of_expansions = [ (w,p,i) for (i, a_i) in enumerate(a) for (w,p) in expansion(a_i, vars...)]
     sort!(array_of_expansions, by=a->a[1].terms[1][1])
 
