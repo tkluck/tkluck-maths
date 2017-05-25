@@ -415,12 +415,12 @@ function _lcm_multipliers{NumVars}(a::Monomial{NumVars}, b::Monomial{NumVars})
     return multiplier_a, multiplier_b
 end
 
-function _is_constant{M <: Term}(a::M)
+function _is_constant{T <: Term}(a::T)
     exponent, coeff = a
     return sum(exponent.e) == 0
 end
 
-function _lcm_multipliers{M <: Term}(a::M, b::M)
+function _lcm_multipliers{T <: Term}(a::T, b::T)
     exp_a, coeff_a = a
     exp_b, coeff_b = b
 
@@ -429,7 +429,7 @@ function _lcm_multipliers{M <: Term}(a::M, b::M)
     return Term(m_exp_a, coeff_b), Term(m_exp_b, coeff_a)
 end
 
-function _monomial_div{M<: Term}(a::M, b::M)::Nullable{M}
+function _monomial_div{T<: Term}(a::T, b::T)::Nullable{T}
     mul_a, mul_b = _lcm_multipliers(a, b)
 
     if _is_constant(mul_a)
@@ -439,7 +439,7 @@ function _monomial_div{M<: Term}(a::M, b::M)::Nullable{M}
     end
 end
 
-function _monomial_div{M<: Term}(a::_ModuleTerm{M}, b::_ModuleTerm{M})::Nullable{M}
+function _monomial_div{T<: Term}(a::_ModuleTerm{T}, b::_ModuleTerm{T})::Nullable{T}
     if a.pos != b.pos
         return nothing
     else
@@ -447,8 +447,8 @@ function _monomial_div{M<: Term}(a::_ModuleTerm{M}, b::_ModuleTerm{M})::Nullable
     end
 end
 
-_maybe_lcm_multipliers{M <: Term}(a::M, b::M)::Nullable{Tuple{M,M}} = _lcm_multipliers(a,b)
-function _maybe_lcm_multipliers{M <: Term}(a::_ModuleTerm{M}, b::_ModuleTerm{M})::Nullable{Tuple{M,M}}
+_maybe_lcm_multipliers{T <: Term}(a::T, b::T)::Nullable{Tuple{T,T}} = _lcm_multipliers(a,b)
+function _maybe_lcm_multipliers{T <: Term}(a::_ModuleTerm{T}, b::_ModuleTerm{T})::Nullable{Tuple{T,T}}
     if a.pos != b.pos
         return nothing
     else
