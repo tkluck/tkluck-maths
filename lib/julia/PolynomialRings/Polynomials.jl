@@ -181,10 +181,7 @@ convert{S<:Polynomial}(::Type{S}, p::S) = p
 iszero{P <: Polynomial}(p::P)= length(p.terms) == 0
 iszero{P <: Polynomial}(p::AbstractArray{P}) = all(iszero(p_i) for p_i in p)
 
-+{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T}) = plusminus(a,b,+)
--{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T}) = plusminus(a,b,-)
-
-function plusminus{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T}, op::Function)
+function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T})
     S = promote_type(R1, R2)
     res = Vector{ Term{S, NumVars} }(length(a.terms) + length(b.terms))
     n = 0
@@ -196,13 +193,13 @@ function plusminus{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::
         ((exponent_b, coefficient_b), next_state_b) = next(b.terms, state_b)
 
         if exponent_a < exponent_b
-            res[n+=1] = Term(exponent_a, op(coefficient_a,0))
+            res[n+=1] = Term(exponent_a, coefficient_a)
             state_a = next_state_a
         elseif exponent_b < exponent_a
-            res[n+=1] = Term(exponent_b, op(0,coefficient_b))
+            res[n+=1] = Term(exponent_b, coefficient_b)
             state_b = next_state_b
         else
-            coeff = op(coefficient_a, coefficient_b)
+            coeff = coefficient_a + coefficient_b
             if coeff != 0
                 res[n+=1] = Term(exponent_a, coeff)
             end
@@ -212,12 +209,49 @@ function plusminus{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::
     end
 
     for t in rest(a.terms, state_a)
-        (exp, c) = t
-        res[n+=1] = Term(exp, op(c,0))
+        res[n+=1] = t
+    end
+    for t in rest(b.terms, state_b)
+        res[n+=1] = t
+    end
+
+    resize!(res, n)
+    return Polynomial{S, NumVars,T}(res)
+end
+
+function -{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T})
+    S = promote_type(R1, R2)
+    res = Vector{ Term{S, NumVars} }(length(a.terms) + length(b.terms))
+    n = 0
+
+    state_a = start(a.terms)
+    state_b = start(b.terms)
+    while !done(a.terms, state_a) && !done(b.terms, state_b)
+        ((exponent_a, coefficient_a), next_state_a) = next(a.terms, state_a)
+        ((exponent_b, coefficient_b), next_state_b) = next(b.terms, state_b)
+
+        if exponent_a < exponent_b
+            res[n+=1] = Term(exponent_a, coefficient_a)
+            state_a = next_state_a
+        elseif exponent_b < exponent_a
+            res[n+=1] = Term(exponent_b, -coefficient_b)
+            state_b = next_state_b
+        else
+            coeff = coefficient_a - coefficient_b
+            if coeff != 0
+                res[n+=1] = Term(exponent_a, coeff)
+            end
+            state_b = next_state_b
+            state_a = next_state_a
+        end
+    end
+
+    for t in rest(a.terms, state_a)
+        res[n+=1] = t
     end
     for t in rest(b.terms, state_b)
         (exp, c) = t
-        res[n+=1] = Term(exp, op(0,c))
+        res[n+=1] = Term(exp, -c)
     end
 
     resize!(res, n)
