@@ -4,17 +4,20 @@ import Base: +,==,!=,*,//,-,convert,promote_rule,show,cmp,isless,zero,eltype
 
 immutable Monomial{NumVars}
     e::NTuple{NumVars, Int}
+    t::Int
 end
+Monomial{NumVars}(e::NTuple{NumVars, Int}) = Monomial(e, sum(e))
 
 function =={M <: Monomial}(a::M, b::M)
-    return a.e == b.e
+    return a.t == b.t && a.e == b.e
 end
 
 function +{NumVars}(a::Monomial{NumVars}, b::Monomial{NumVars})
     return Monomial{NumVars}(
         ntuple(Val{NumVars}) do i
             return a.e[i] + b.e[i]
-        end
+        end,
+        a.t + b.t
     )
 end
 
@@ -24,7 +27,7 @@ macro myplus(numvars)
         push!(expr.args, :( a.e[$i] + b.e[$i] ))
     end
     return quote
-        Monomial{$numvars}($expr)
+        Monomial{$numvars}($expr, a.t + b.t)
     end
 end
 
@@ -72,7 +75,7 @@ end
 
 function cmp{M <: Monomial}(a::M, b::M)
     # degrevlex
-    degcmp = cmp(sum(a.e), sum(b.e))
+    degcmp = cmp(a.t, b.t)
     if degcmp == 0
         for i = length(a.e):-1:1
             varcmp = cmp(a.e[i], b.e[i])
@@ -321,18 +324,18 @@ function leading_term{P <: Polynomial}(a::AbstractArray{P})
 end
 
 function _lcm_multipliers{NumVars}(a::Monomial{NumVars}, b::Monomial{NumVars})
-     _lcm = Monomial{NumVars}(
+     _lcm = Monomial(
         ntuple(Val{NumVars}) do i
             return max(a.e[i], b.e[i])
         end
     )
 
-    multiplier_a = Monomial{NumVars}(
+    multiplier_a = Monomial(
         ntuple(Val{NumVars}) do i
             return _lcm.e[i] - a.e[i]
         end
     )
-    multiplier_b = Monomial{NumVars}(
+    multiplier_b = Monomial(
         ntuple(Val{NumVars}) do i
             return _lcm.e[i] - b.e[i]
         end
