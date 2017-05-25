@@ -324,6 +324,10 @@ function  *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
     PP = promote_type(typeof(a), typeof(b))
     S = basering(PP)
 
+    if iszero(a) || iszero(b)
+        return zero(PP)
+    end
+
     # the following seems to be implemented through a very naive version
     # of push! that does a reallocation at every step. So implement
     # it manually below
