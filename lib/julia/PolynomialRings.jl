@@ -4,7 +4,7 @@ include("PolynomialRings/Polynomials.jl")
 include("PolynomialRings/Groebner.jl")
 include("PolynomialRings/Modules.jl")
 
-import PolynomialRings.Polynomials: Polynomial, Term, Monomial, variables, _varsymbols, basering
+import PolynomialRings.Polynomials: BaseRing, Polynomial, Term, Monomial, variables, _varsymbols, basering
 
 import Iterators: groupby
 
@@ -15,9 +15,18 @@ immutable PolynomialRing
 end
 
 
-function polynomial_ring{R <: Number}(::Type{R}, variable_names::Symbol...)
+
+function polynomial_ring{R <: BaseRing}(::Type{R}, variable_names::Symbol...)
     T = Tuple{variable_names...}
     NumVars = nfields(T)
+    datatype = Polynomial{R, NumVars, T}
+    return PolynomialRing(R, T, datatype), variables(datatype)
+end
+
+function polynomial_ring{A <: AbstractArray}(dummy_element::A, variable_names::Symbol...)
+    T = Tuple{variable_names...}
+    NumVars = nfields(T)
+    R = typeof(Coefficients.ArrayCoefficient(dummy_element))
     datatype = Polynomial{R, NumVars, T}
     return PolynomialRing(R, T, datatype), variables(datatype)
 end
@@ -50,7 +59,7 @@ import Base: promote_rule, promote_type, convert
 
 fieldtypes{T <: Tuple}(t::Type{T}) = Symbol[fieldtype(T, i) for i in 1:nfields(T)]
 import Base: convert, promote_rule
-function promote_rule{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
+function promote_rule{R <: BaseRing, S <: BaseRing, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
         ::Type{Polynomial{R, NumVars1, T}},
         ::Type{Polynomial{S, NumVars2, U}},
     )
@@ -63,7 +72,7 @@ function promote_rule{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, 
     NumVars = length(all_names)
     return Polynomial{RS, NumVars, TU}
 end
-convert{R <: Number, NumVars, T <: Tuple}(
+convert{R <: BaseRing, NumVars, T <: Tuple}(
         ::Type{Polynomial{R, NumVars, T}},
         x::Polynomial{R, NumVars, T},
     ) = x
@@ -110,7 +119,7 @@ function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U}, safe::Bool)
     return f
 end
 
-function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
+function convert{R <: BaseRing, S <: BaseRing, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
         ::Type{Polynomial{R, NumVars1, T}},
         x::Polynomial{S, NumVars2, U},
     )
@@ -125,7 +134,9 @@ function convert{R <: Number, S <: Number, NumVars1, NumVars2, T <: Tuple, U <: 
     return Polynomial{R, NumVars1, T}(new_terms)
 end
 
-function expansion{P <: Polynomial}(x::P, vars::Symbol...)
+expansion{P <: Polynomial}(x::P, vars::Symbol...) = _expansion_impl(x, vars...)
+
+function _expansion_impl{P <: Polynomial}(x::P, vars::Symbol...)
     if length(vars) == 0
         throw(ArgumentError("Need to pass at least one variable for expansion"))
     end
@@ -133,7 +144,7 @@ function expansion{P <: Polynomial}(x::P, vars::Symbol...)
     T = _varsymbols(P)
     other_vars = Symbol[fieldtype(T, i) for i in 1:nfields(T) if !(fieldtype(T,i) in vars)]
     if length(other_vars) == 0
-        return [ (Polynomial([Term(Monomial(exp.e), one(R))]), coef) for (exp, coef) in x.terms ]
+        return [ (P([Term(Monomial(exp.e), one(R))]), coef) for (exp, coef) in x.terms ]
     end
 
     f = _converter(Tuple{vars...},       T, false)
@@ -157,7 +168,7 @@ function expansion{P <: Polynomial}(x::P, vars::Symbol...)
 end
 
 function expansion{P <: Polynomial}(a::AbstractArray{P}, vars::Symbol...)
-    array_of_expansions = [ (w,p,i) for (i, a_i) in enumerate(a) for (w,p) in expansion(a_i, vars...)]
+    array_of_expansions = [ (w,p,i) for (i, a_i) in enumerate(a) for (w,p) in _expansion_impl(a_i, vars...)]
     sort!(array_of_expansions, by=a->a[1].terms[1][1])
 
     res = []
@@ -172,7 +183,7 @@ function expansion{P <: Polynomial}(a::AbstractArray{P}, vars::Symbol...)
     return res
 end
 
-function (p::Polynomial{R, NumVars, T}){R <: Number, NumVars, T <: Tuple}(; kwargs...)
+function (p::Polynomial{R, NumVars, T}){R <: BaseRing, NumVars, T <: Tuple}(; kwargs...)
     vars = [k for (k, v) in kwargs]
     values = [v for (k, v) in kwargs]
 
@@ -200,7 +211,7 @@ function (p::Polynomial{R, NumVars, T}){R <: Number, NumVars, T <: Tuple}(; kwar
 
 end
 
-function (p::Array{Polynomial{R, NumVars, T}}){R <: Number, NumVars, T <: Tuple}(; kwargs...)
+function (p::Array{Polynomial{R, NumVars, T}}){R <: BaseRing, NumVars, T <: Tuple}(; kwargs...)
 
     return [p_i(;kwargs...) for p_i in p]
 
@@ -223,6 +234,8 @@ end
 function random_matrix()
     return Matrix([ random_polynomial() for i = 1:10, j = 1:10 ])
 end
+
+include("PolynomialRings/Coefficients.jl")
 
 
 end

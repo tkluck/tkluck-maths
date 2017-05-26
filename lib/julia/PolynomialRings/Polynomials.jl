@@ -93,8 +93,10 @@ end
 
 isless{M <: Monomial}(a::M, b::M) = cmp(a, b)<0
 
-typealias Term{R<:Number, NumVars} Tuple{Monomial{NumVars},R}
-Term{R<:Number,NumVars}(m::Monomial{NumVars},r::R) = Term((m,r))
+abstract AbstractBaseRing
+typealias BaseRing{N <: Number}  Union{N, AbstractBaseRing}
+typealias Term{R<:BaseRing, NumVars} Tuple{Monomial{NumVars},R}
+Term{R<:BaseRing,NumVars}(m::Monomial{NumVars},r::R) = Term((m,r))
 coefficient{R,NumVars}(a::Term{R, NumVars})::R = a[2]
 
 isless{T <: Term}(a::T, b::T) = cmp(a[1], b[1])<0
@@ -132,21 +134,21 @@ function //{R,NumVars,S}(a::Term{R, NumVars}, b::S)
     return Term(exponent, coeff // b)
 end
 
-immutable Polynomial{R <: Number, NumVars, T <: Tuple} <: Number
+immutable Polynomial{R <: BaseRing, NumVars, T <: Tuple} <: Number
     terms::Vector{ Term{R, NumVars} }
 end
 
-basering{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = R
-basering{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = R
-termtype{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = Term{R, NumVars}
-termtype{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = Term{R, NumVars}
-monomialtype{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = Monomial{NumVars}
-monomialtype{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = Monomial{NumVars}
-_varsymbols{R <: Number, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = T
-_varsymbols{R <: Number, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = T
+basering{R <: BaseRing, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = R
+basering{R <: BaseRing, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = R
+termtype{R <: BaseRing, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = Term{R, NumVars}
+termtype{R <: BaseRing, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = Term{R, NumVars}
+monomialtype{R <: BaseRing, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = Monomial{NumVars}
+monomialtype{R <: BaseRing, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = Monomial{NumVars}
+_varsymbols{R <: BaseRing, NumVars, T <: Tuple}(::Type{Polynomial{R, NumVars, T}}) = T
+_varsymbols{R <: BaseRing, NumVars, T <: Tuple}(::     Polynomial{R, NumVars, T} ) = T
 
-num_variables{R<:Number, NumVars, T <: Tuple}(::Type{Polynomial{R,NumVars,T}}) = NumVars
-variables{R<:Number, NumVars, T<:Tuple}(::Type{Polynomial{R,NumVars,T}}) = ntuple(Val{NumVars}) do i
+num_variables{R<:BaseRing, NumVars, T <: Tuple}(::Type{Polynomial{R,NumVars,T}}) = NumVars
+variables{R<:BaseRing, NumVars, T<:Tuple}(::Type{Polynomial{R,NumVars,T}}) = map(1:NumVars) do i
     exponent = ntuple(Val{NumVars}) do j
         i == j ? 1 : 0
     end
@@ -156,18 +158,18 @@ end
 num_variables{P <: Polynomial}(p::P) = num_variables(typeof(p))
 variables{P <: Polynomial}(p::P) = variables(typeof(p))
 
-convert{R<:Number, NumVars, T<:Tuple, S<:Number}(::Type{Polynomial{R, NumVars, T}}, c0::S) = (
+convert{R<:BaseRing, NumVars, T<:Tuple, S<:BaseRing}(::Type{Polynomial{R, NumVars, T}}, c0::S) = (
     c0 != 0
        ? Polynomial{promote_type(R,S), NumVars, T}([(Monomial(ntuple(i->0, Val{NumVars})), promote_type(R,S)(c0))])
        : Polynomial{promote_type(R,S), NumVars, T}([])
 )
 
-promote_rule{R<:Number,NumVars,T<:Tuple,S<:Number}(::Type{Polynomial{R, NumVars, T}}, ::Type{S}) =
+promote_rule{R<:Number,NumVars,T<:Tuple,S<:Real}(::Type{Polynomial{R, NumVars, T}}, ::Type{S}) =
     Polynomial{promote_type(R,S), NumVars, T}
 
-convert{R<:Number, NumVars,T<:Tuple}(::Type{Polynomial{R, NumVars,T}}, c::Term{R,NumVars}) = (
+convert{R<:BaseRing, NumVars,T<:Tuple}(::Type{Polynomial{R, NumVars,T}}, c::Term{R,NumVars}) = (
     coefficient(c) != 0
-       ?  Polynomial{R, NumVars,T}([c])
+       ? Polynomial{R, NumVars,T}([c])
        : Polynomial{R, NumVars,T}([])
 )
 
@@ -186,6 +188,12 @@ convert{S<:Polynomial}(::Type{S}, p::S) = p
 
 iszero{P <: Polynomial}(p::P)= length(p.terms) == 0
 iszero{P <: Polynomial}(p::AbstractArray{P}) = all(iszero(p_i) for p_i in p)
+
+import Base: zero, one
+zero{R, NumVars, T}(p::Polynomial{R, NumVars, T}) = Polynomial{R, NumVars, T}([])
+one{R, NumVars, T}(p::Polynomial{R, NumVars, T}) = (
+    Polynomial{R, NumVars, T}([(Monomial(ntuple(i->0, Val{NumVars})), one(R))])
+)
 
 function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomial{R2, NumVars, T})
     S = promote_type(R1, R2)
@@ -342,8 +350,8 @@ typealias AbstractModuleElement{P <: Polynomial} Union{P, AbstractArray{P}}
 modulebasering{M <: Polynomial}(::Type{M}) = M
 modulebasering{M <: AbstractArray}(::Type{M}) = eltype(M)
 
-*{R<:Number, NumVars,T<:Tuple}(x::AbstractArray{Polynomial{R, NumVars,T}}, a::Term{R, NumVars})= eltype(x)[ x_i*a for x_i in x]
-*{R<:Number, NumVars,T<:Tuple}(a::Term{R, NumVars}, x::AbstractArray{Polynomial{R, NumVars,T}})= eltype(x)[ a*x_i for x_i in x]
+*{R<:BaseRing, NumVars,T<:Tuple}(x::AbstractArray{Polynomial{R, NumVars,T}}, a::Term{R, NumVars})= eltype(x)[ x_i*a for x_i in x]
+*{R<:BaseRing, NumVars,T<:Tuple}(a::Term{R, NumVars}, x::AbstractArray{Polynomial{R, NumVars,T}})= eltype(x)[ a*x_i for x_i in x]
 
 
 immutable _ModuleTerm{T <: Term}
