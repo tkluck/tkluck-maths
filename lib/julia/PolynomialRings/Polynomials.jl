@@ -498,12 +498,5 @@ function _lead_div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)::Tuple
     return nothing, f
 end
 
-function random_polynomial()
-    res = sum([ rand(0:100) * x^i for i = 0:10 ])
-end
-
-function random_matrix()
-    return Matrix([ random_polynomial() for i = 1:10, j = 1:10 ])
-end
 
 end
