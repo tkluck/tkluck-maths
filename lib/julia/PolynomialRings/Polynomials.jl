@@ -78,7 +78,7 @@ function cmp{M <: Monomial}(a::M, b::M)
     degcmp = cmp(a.t, b.t)
     if degcmp == 0
         i = length(a.e)
-        while i >= 1
+        @inbounds while i >= 1
             varcmp = cmp(a.e[i], b.e[i])
             if varcmp != 0
                 return -varcmp
@@ -199,15 +199,15 @@ function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
         ((exponent_b, coefficient_b), next_state_b) = next(b.terms, state_b)
 
         if exponent_a < exponent_b
-            res[n+=1] = Term(exponent_a, coefficient_a)
+            @inbounds res[n+=1] = Term(exponent_a, coefficient_a)
             state_a = next_state_a
         elseif exponent_b < exponent_a
-            res[n+=1] = Term(exponent_b, coefficient_b)
+            @inbounds res[n+=1] = Term(exponent_b, coefficient_b)
             state_b = next_state_b
         else
             coeff = coefficient_a + coefficient_b
             if coeff != 0
-                res[n+=1] = Term(exponent_a, coeff)
+                @inbounds res[n+=1] = Term(exponent_a, coeff)
             end
             state_b = next_state_b
             state_a = next_state_a
@@ -215,10 +215,10 @@ function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
     end
 
     for t in rest(a.terms, state_a)
-        res[n+=1] = t
+        @inbounds res[n+=1] = t
     end
     for t in rest(b.terms, state_b)
-        res[n+=1] = t
+        @inbounds res[n+=1] = t
     end
 
     resize!(res, n)
@@ -237,15 +237,15 @@ function -{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
         ((exponent_b, coefficient_b), next_state_b) = next(b.terms, state_b)
 
         if exponent_a < exponent_b
-            res[n+=1] = Term(exponent_a, coefficient_a)
+            @inbounds res[n+=1] = Term(exponent_a, coefficient_a)
             state_a = next_state_a
         elseif exponent_b < exponent_a
-            res[n+=1] = Term(exponent_b, -coefficient_b)
+            @inbounds res[n+=1] = Term(exponent_b, -coefficient_b)
             state_b = next_state_b
         else
             coeff = coefficient_a - coefficient_b
             if coeff != 0
-                res[n+=1] = Term(exponent_a, coeff)
+                @inbounds res[n+=1] = Term(exponent_a, coeff)
             end
             state_b = next_state_b
             state_a = next_state_a
@@ -253,11 +253,11 @@ function -{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
     end
 
     for t in rest(a.terms, state_a)
-        res[n+=1] = t
+        @inbounds res[n+=1] = t
     end
     for t in rest(b.terms, state_b)
         (exp, c) = t
-        res[n+=1] = Term(exp, -c)
+        @inbounds res[n+=1] = Term(exp, -c)
     end
 
     resize!(res, n)
@@ -266,7 +266,7 @@ end
 
 macro _enqueue_term(i,j)
     quote
-        t = termmul(a.terms[$i], b.terms[$j], _varsymbols(P1), _varsymbols(P2))
+        @inbounds t = termmul(a.terms[$i], b.terms[$j], _varsymbols(P1), _varsymbols(P2))
         enqueue!(minimal_corners, ($i,$j), t)
     end
 end
@@ -314,9 +314,9 @@ function *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
             exponent, coef = summands[j]
             if exponent == last_exp
                 _, cur_coef = summands[n]
-                summands[n] = Term(exponent, cur_coef + coef)
+                @inbounds summands[n] = Term(exponent, cur_coef + coef)
             else
-                summands[n+=1] = summands[j]
+                @inbounds summands[n+=1] = summands[j]
                 last_exp = exponent
             end
         end
