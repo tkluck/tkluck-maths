@@ -206,5 +206,23 @@ function (p::Array{Polynomial{R, NumVars, T}}){R <: Number, NumVars, T <: Tuple}
 
 end
 
+function random_term(total_degree::Int)
+    A, (x,y,z) = polynomial_ring(Int, :x, :y, :z)
+
+    a = rand(0:total_degree)
+    b = rand(0:(total_degree-a))
+    c = rand(0:(total_degree-a-b))
+
+    return rand(0:100) * x^a*y^b*z^c
+
+end
+function random_polynomial()
+    res = sum([ random_term(i) for i = 0:10 ])
+end
+
+function random_matrix()
+    return Matrix([ random_polynomial() for i = 1:10, j = 1:10 ])
+end
+
 
 end
