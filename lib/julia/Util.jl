@@ -38,13 +38,7 @@ type BoundedPriorityQueue{K,V}
     BoundedPriorityQueue(max_length::Int) = new(resize!(Pair{K,V}[], max_length+1), 0, max_length)
 end
 
-using Base.Collections: heapparent, percolate_down!, percolate_up!
-function bounded_heapify!(xs::AbstractArray, limit, o::Base.Ordering)
-    for i in heapparent(limit):-1:1
-        percolate_down!(xs, i, o, limit)
-    end
-    xs
-end
+using Base.Collections: percolate_down!, percolate_up!
 
 function enqueue!{K,V}(x::BoundedPriorityQueue{K,V}, k::K, v::V)
     x.values[x.cur_length+1] = (k=>v)
