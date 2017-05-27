@@ -3,7 +3,7 @@ module MFDeformations
 using PolynomialRings: polynomial_ring, expansion
 using PolynomialRings.Polynomials: Polynomial, basering
 using PolynomialRings.Modules: HomspaceMorphism, kernel, span, lift_and_obstruction
-using PolynomialRings.Groebner: groebner_basis, reduce
+using PolynomialRings.Groebner: groebner_basis, red
 
 
 function diff{P <: Polynomial}(Q::Matrix{P})
@@ -61,7 +61,7 @@ function H1{P <: Polynomial}(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMo
     groeb,transformation = groebner_basis(dQ_odd)
 
     H1 = map(kernel(dQ_even)) do k
-        (k_red, factors) = reduce(k, groeb)
+        (k_red, factors) = red(k, groeb)
         k_red
     end
 

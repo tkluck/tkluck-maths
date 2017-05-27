@@ -3,7 +3,7 @@ module Groebner
 using PolynomialRings.Polynomials: Polynomial, AbstractModuleElement
 using PolynomialRings.Polynomials: _div_with_remainder, _lead_div_with_remainder, leading_term, iszero, _maybe_lcm_multipliers, modulebasering
 
-function reduce{M <: AbstractModuleElement}(f::M, G::AbstractArray{M})
+function red{M <: AbstractModuleElement}(f::M, G::AbstractArray{M})
     factors = transpose(spzeros(modulebasering(M), length(G)))
     frst = true
     more_loops = false
@@ -74,9 +74,9 @@ function groebner_basis{M <: AbstractModuleElement}(polynomials::AbstractVector{
             S = m_a * a - m_b * b
 
             # potential speedup: wikipedia says that in all but the 'last steps'
-            # (whichever those may be), we can get away with a version of reduce
+            # (whichever those may be), we can get away with a version of red
             # that only does lead division
-            (S_red, factors) = reduce(S, result)
+            (S_red, factors) = red(S, result)
 
             factors[1, i] -= m_a
             factors[1, j] += m_b
@@ -121,7 +121,7 @@ function syzygies{M <: AbstractModuleElement}(polynomials::AbstractVector{M})
             m_a, m_b = get(maybe_multipliers)
             S = m_a * a - m_b * b
 
-            (S_red, syzygy) = reduce(S, polynomials)
+            (S_red, syzygy) = red(S, polynomials)
             if !iszero(S_red)
                 throw(ArgumentError("syzygies(...) expects a Groebner basis, so S_red = $( S_red ) should be zero"))
             end
@@ -129,7 +129,7 @@ function syzygies{M <: AbstractModuleElement}(polynomials::AbstractVector{M})
             syz_vector[i] -= m_a
             syz_vector[j] += m_b
 
-            (syz_red, _) = reduce(syz_vector, result)
+            (syz_red, _) = red(syz_vector, result)
             if !iszero(syz_red)
                 push!(result, syz_red)
             end

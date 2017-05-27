@@ -1,7 +1,7 @@
 module Modules
 
 using PolynomialRings.Polynomials: Polynomial
-import PolynomialRings.Groebner: reduce, groebner_basis, syzygies, groebner_basis
+import PolynomialRings.Groebner: red, groebner_basis, syzygies, groebner_basis
 
 export ModuleMorphism, HomspaceMorphism, lift, kernel, lift_and_obstruction
 
@@ -43,7 +43,7 @@ end
 function lift{P <: Polynomial}(F::ModuleMorphism{P}, x::Vector{P})::Nullable{Vector{P}}
 
     (basis, transformation) = groebner_basis(span(F))
-    (x_red, factors) = reduce(x, basis)
+    (x_red, factors) = red(x, basis)
 
     if any(x_i != 0 for x_i in x_red)
         return nothing
@@ -55,7 +55,7 @@ end
 function lift_and_obstruction{P <: Polynomial}(F::HomspaceMorphism{P}, x::Matrix{P})
 
     (basis, transformation) = groebner_basis(F)
-    (x_red, factors) = reduce(x, basis)
+    (x_red, factors) = red(x, basis)
 
     return unflatten(F, factors * transformation), x_red
 end
@@ -74,7 +74,7 @@ end
 function lift{P <: Polynomial}(F::Vector{P}, x::P)::Nullable{Matrix{P}}
 
     (basis, transformation) = groebner_basis(F)
-    (x_red, factors) = reduce(x, basis)
+    (x_red, factors) = red(x, basis)
 
     if x_red != 0
         return nothing
