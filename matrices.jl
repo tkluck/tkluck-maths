@@ -11,7 +11,7 @@ println("Finding deformations for:")
 Q = T2()
 display(Q); println()
 
-symbols = [Symbol("W$i") for i=1:40]
+symbols = [Symbol("w$i") for i=1:40]
 Qdef =deformation(Q, symbols...)
 println("Deformation is:")
 display(Qdef); println()
