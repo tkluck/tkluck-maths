@@ -280,7 +280,7 @@ macro _enqueue_term(i,j)
 end
 import Util: BoundedPriorityQueue, enqueue!, dequeue!, peek
 function *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
-    PP = promote_type(typeof(a), typeof(b))
+    PP = promote_type(P1, P2)
 
     if iszero(a) || iszero(b)
         return zero(PP)
