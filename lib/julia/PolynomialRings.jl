@@ -77,26 +77,16 @@ convert{R <: BaseRing, NumVars, T <: Tuple}(
         x::Polynomial{R, NumVars, T},
     ) = x
 
-
-# some black magic: create a function that does the re-indexing from
-# the order in U to the order in T. It is actually about as easy to
-# do it in this way as it is to write the appropriate data structures.
-#
-# By memoizing the result, we ensure that we only need to compile the
-# function once.
-_converter_cache = Dict{Tuple{DataType, DataType}, Function}()
-function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U}, safe::Bool)
-    if (T,U) in keys(_converter_cache)
-        return _converter_cache[T,U]
-    end
-    # ensure that we do not throw away data
-    if safe
-        for j in 1:nfields(U)
-            if !any(fieldtype(T,i) == fieldtype(U,j) for i in 1:nfields(T))
-                throw(ArgumentError("Cannot convert variables $U to variables $T"))
-            end
+@generated function _convert(::Type{T}, ::Type{U}, exponent_tuple::Tuple) where T <: Tuple where U <: Tuple
+    for j in 1:nfields(U)
+        if !any(fieldtype(T,i) == fieldtype(U,j) for i in 1:nfields(T))
+            throw(ArgumentError("Cannot convert variables $U to variables $T"))
         end
     end
+    :( _lossy_convert(T, U, exponent_tuple) )
+end
+
+@generated function _lossy_convert(::Type{T}, ::Type{U}, exponent_tuple::Tuple) where T <: Tuple where U <: Tuple
     # create an expression that calls the tuple constructor. No arguments -- so far
     converter = :( tuple() )
     for i in 1:nfields(T)
@@ -111,12 +101,7 @@ function _converter{T <: Tuple, U <: Tuple}(::Type{T}, ::Type{U}, safe::Bool)
             end
         end
     end
-    # now specify that exponent_tuple is an argument
-    converter = :( exponent_tuple -> $converter )
-    # and make the result into a callable Function
-    f = eval(converter)
-    _converter_cache[T,U] = f
-    return f
+    return converter
 end
 
 function convert{R <: BaseRing, S <: BaseRing, NumVars1, NumVars2, T <: Tuple, U <: Tuple}(
@@ -124,10 +109,9 @@ function convert{R <: BaseRing, S <: BaseRing, NumVars1, NumVars2, T <: Tuple, U
         x::Polynomial{S, NumVars2, U},
     )
 
-    f = _converter(T, U, true)
     new_terms = map(x.terms) do term
         exponent, c = term
-        new_exponent = f(exponent.e)
+        new_exponent = _convert(T, U, exponent.e)
         Term(Monomial(new_exponent), c)
     end
 
@@ -147,8 +131,8 @@ function _expansion_impl{P <: Polynomial}(x::P, vars::Symbol...)
         return [ (P([Term(Monomial(exp.e), one(R))]), coef) for (exp, coef) in x.terms ]
     end
 
-    f = _converter(Tuple{vars...},       T, false)
-    g = _converter(Tuple{other_vars...}, T, false)
+    f = exponent_tuple -> _lossy_convert(Tuple{vars...},       T, exponent_tuple)
+    g = exponent_tuple -> _lossy_convert(Tuple{other_vars...}, T, exponent_tuple)
 
     res = []
     separated_terms = [(f(exp.e), g(exp.e), coeff) for (exp, coeff) in x.terms]
@@ -189,7 +173,7 @@ function (p::Polynomial{R, NumVars, T}){R <: BaseRing, NumVars, T <: Tuple}(; kw
 
     remaining_vars = Symbol[fieldtype(T, i) for i in 1:nfields(T) if !(fieldtype(T,i) in vars)]
 
-    f = _converter(Tuple{vars...}, T, false)
+    f = exponent_tuple -> _lossy_convert(Tuple{vars...}, T, exponent_tuple)
 
     if length(remaining_vars) == 0
         res = zero(R)
@@ -201,7 +185,7 @@ function (p::Polynomial{R, NumVars, T}){R <: BaseRing, NumVars, T <: Tuple}(; kw
     else
         P = Polynomial{R, length(remaining_vars), Tuple{remaining_vars...}}
         res = zero(P)
-        g = _converter(Tuple{remaining_vars...}, T, false)
+        g = exponent_tuple -> _lossy_convert(Tuple{remaining_vars...}, T, exponent_tuple)
         for term in p.terms
             m, c = term
             res += prod(v^e_i for (v, e_i) in zip(values, f(m.e))) * P([ Term(Monomial(g(m.e)), c) ])
