@@ -35,12 +35,12 @@ type BoundedPriorityQueue{K,V}
     values::Vector{Pair{K,V}}
     cur_length::Int
     max_length::Int
-    BoundedPriorityQueue(max_length::Int) = new(resize!(Pair{K,V}[], max_length+1), 0, max_length)
+    BoundedPriorityQueue{K, V}(max_length::Int) where {K,V} = new(resize!(Pair{K,V}[], max_length+1), 0, max_length)
 end
 
-using Base.Collections: percolate_down!, percolate_up!
+import DataStructures: percolate_down!, percolate_up!, enqueue!, dequeue!, peek
 
-function enqueue!{K,V}(x::BoundedPriorityQueue{K,V}, k::K, v::V)
+function enqueue!(x::BoundedPriorityQueue{K,V}, k::K, v::V) where {K,V}
     x.values[x.cur_length+1] = (k=>v)
     if(x.cur_length < x.max_length)
         x.cur_length +=1
@@ -48,7 +48,7 @@ function enqueue!{K,V}(x::BoundedPriorityQueue{K,V}, k::K, v::V)
     percolate_up!(x.values, x.cur_length, Base.Order.By(a->a[2]))
 end
 
-function dequeue!{K,V}(x::BoundedPriorityQueue{K,V})
+function dequeue!(x::BoundedPriorityQueue)
     if x.cur_length < 1
         throw(BoundsError())
     end

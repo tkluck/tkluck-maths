@@ -42,9 +42,9 @@ end
 
 isless{M <: Monomial}(a::M, b::M) = cmp(a, b)<0
 
-abstract AbstractBaseRing
-typealias BaseRing{N <: Number}  Union{N, AbstractBaseRing}
-typealias Term{R<:BaseRing, NumVars} Tuple{Monomial{NumVars},R}
+abstract type AbstractBaseRing end
+BaseRing{N <: Number} = Union{N, AbstractBaseRing}
+Term{R<:BaseRing, NumVars} = Tuple{Monomial{NumVars},R}
 Term{R<:BaseRing,NumVars}(m::Monomial{NumVars},r::R) = Term((m,r))
 coefficient{R,NumVars}(a::Term{R, NumVars})::R = a[2]
 
@@ -61,8 +61,8 @@ function termmul{T1 <: Term, T2 <: Term, Vars1 <: Tuple, Vars2 <: Tuple}(a::T1, 
     Vars = Tuple{names...}
     NumVars = length(all_names)
 
-    f = PolynomialRings._converter(Vars, Vars1, true)
-    g = PolynomialRings._converter(Vars, Vars2, true)
+    f = exponent_tuple -> PolynomialRings._convert(Vars, Vars1, exponent_tuple)
+    g = exponent_tuple -> PolynomialRings._convert(Vars, Vars2, exponent_tuple)
 
     exp_a, coef_a = a
     exp_b, coef_b = b
@@ -171,10 +171,10 @@ function +{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
         end
     end
 
-    for t in rest(a.terms, state_a)
+    for t in Iterators.rest(a.terms, state_a)
         @inbounds res[n+=1] = t
     end
-    for t in rest(b.terms, state_b)
+    for t in Iterators.rest(b.terms, state_b)
         @inbounds res[n+=1] = t
     end
 
@@ -209,10 +209,10 @@ function -{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
         end
     end
 
-    for t in rest(a.terms, state_a)
+    for t in Iterators.rest(a.terms, state_a)
         @inbounds res[n+=1] = t
     end
-    for t in rest(b.terms, state_b)
+    for t in Iterators.rest(b.terms, state_b)
         (exp, c) = t
         @inbounds res[n+=1] = Term(exp, -c)
     end
@@ -221,14 +221,12 @@ function -{R1, R2, NumVars, T<:Tuple}(a::Polynomial{R1, NumVars, T}, b::Polynomi
     return Polynomial{S, NumVars,T}(res)
 end
 
-macro _enqueue_term(i,j)
-    quote
-        @inbounds t = termmul(a.terms[$i], b.terms[$j], _varsymbols(P1), _varsymbols(P2))
-        enqueue!(minimal_corners, ($i,$j), t)
-    end
-end
-import Util: BoundedPriorityQueue, enqueue!, dequeue!, peek
-function *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
+import Util: BoundedPriorityQueue
+import DataStructures: enqueue!, dequeue!, peek
+
+*(a::P , b::P ) where P <: Polynomial = _multiply_polynomials(a,b)
+*(a::P1, b::P2) where {P1 <: Polynomial, P2 <: Polynomial} = _multiply_polynomials(a,b)
+function _multiply_polynomials{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
     PP = promote_type(P1, P2)
 
     if iszero(a) || iszero(b)
@@ -244,7 +242,8 @@ function *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
     # using a bounded queue not to drop items when it gets too big, but to allocate it
     # once to its maximal theoretical size and never reallocate.
     minimal_corners = BoundedPriorityQueue{Tuple{Int, Int}, termtype(PP)}(min(length(a.terms), length(b.terms)))
-    @_enqueue_term(1,1)
+    @inbounds t = termmul(a.terms[1], b.terms[1], _varsymbols(P1), _varsymbols(P2))
+    enqueue!(minimal_corners, (1,1), t)
     @inbounds while length(minimal_corners)>0
         # I don't understand the type inference breakage here, but making
         # it explicit speeds things up
@@ -254,10 +253,12 @@ function *{P1 <: Polynomial, P2 <: Polynomial}(a::P1, b::P2)
         row_indices[row] = col
         col_indices[col] = row
         if row < length(a.terms) && row_indices[row+1] == col - 1
-            @_enqueue_term(row+1, col)
+            @inbounds t = termmul(a.terms[row+1], b.terms[col], _varsymbols(P1), _varsymbols(P2))
+            enqueue!(minimal_corners, (row+1,col), t)
         end
         if col < length(b.terms) && col_indices[col+1] == row - 1
-            @_enqueue_term(row, col+1)
+            @inbounds t = termmul(a.terms[row], b.terms[col+1], _varsymbols(P1), _varsymbols(P2))
+            enqueue!(minimal_corners, (row,col+1), t)
         end
     end
 
@@ -295,12 +296,12 @@ function leading_term{P <: Polynomial}(p::P)
     end
 end
 
-typealias AbstractModuleElement{P <: Polynomial} Union{P, AbstractArray{P}}
+AbstractModuleElement{P <: Polynomial} = Union{P, AbstractArray{P}}
 modulebasering{M <: Polynomial}(::Type{M}) = M
 modulebasering{M <: AbstractArray}(::Type{M}) = eltype(M)
 
-*{R<:BaseRing, NumVars,T<:Tuple}(x::AbstractArray{Polynomial{R, NumVars,T}}, a::Term{R, NumVars})= eltype(x)[ x_i*a for x_i in x]
-*{R<:BaseRing, NumVars,T<:Tuple}(a::Term{R, NumVars}, x::AbstractArray{Polynomial{R, NumVars,T}})= eltype(x)[ a*x_i for x_i in x]
+*{R<:BaseRing, NumVars,T<:Tuple}(x::AbstractArray{Polynomial{R, NumVars,T}}, a::Term{R, NumVars})= map(x_i -> x_i*a, x)
+*{R<:BaseRing, NumVars,T<:Tuple}(a::Term{R, NumVars}, x::AbstractArray{Polynomial{R, NumVars,T}})= map(x_i -> a*x_i, x)
 
 
 immutable _ModuleTerm{T <: Term}
@@ -383,9 +384,8 @@ end
 
 _monomials{P <: Polynomial}(f::P) = reverse(f.terms)
 _monomials{P <: Polynomial}(x::AbstractArray{P}) = _MonomialsIter{P, typeof(x)}(x)
-immutable _MonomialsIter{P <: Polynomial, M <: AbstractArray}
+immutable _MonomialsIter{P <: Polynomial, M <: AbstractArray{P}}
     f::M
-    _MonomialsIter(f::AbstractArray{P}) = new(f)
 end
 import Base: start, next, done, eltype, length
 start{M <: _MonomialsIter}(::M) = (1,0)
@@ -416,43 +416,43 @@ function next{M <: _MonomialsIter}(x::M, state::Tuple{Int,Int})
     return _ModuleTerm(x.f[row].terms[end-term], row), (row, term+1)
 end
 
-function _div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)::Tuple{Nullable{modulebasering(M)}, M}
+function _div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)
     if iszero(f)
         return zero(modulebasering(M)), f
     else
         lt_g = try
             leading_term(g)
         catch ArgumentError # g is zero
-            return nothing, f
+            return Nullable{modulebasering(M)}(), f
         end
         for monomial in _monomials(f)
             maybe_factor = _monomial_div(monomial, lt_g)
             if !isnull(maybe_factor)
                 factor = get(maybe_factor)
-                return factor, f - g*factor
+                return Nullable{modulebasering(M)}(factor), f - g*factor
             end
         end
-        return nothing, f
+        return Nullable{modulebasering(M)}(), f
     end
 end
 
-function _lead_div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)::Tuple{Nullable{modulebasering(M)}, M}
+function _lead_div_with_remainder{M <: AbstractModuleElement}(f::M, g::M)
     lt_f = try
         leading_term(f)
     catch ArgumentError
-        return zero(modulebasering(M)), f
+        return Nullable(zero(modulebasering(M))), f
     end
     lt_g = try
         leading_term(g)
     catch ArgumentError # g is zero
-        return nothing, f
+        return Nullable{modulebasering(M)}(), f
     end
     maybe_factor = _monomial_div(lt_f, lt_g)
     if !isnull(maybe_factor)
         factor = get(maybe_factor)
-        return factor, f - g*factor
+        return Nullable{modulebasering(M)}(factor), f - g*factor
     end
-    return nothing, f
+    return Nullable{modulebasering(M)}(), f
 end
 
 

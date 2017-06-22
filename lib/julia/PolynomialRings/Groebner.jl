@@ -108,7 +108,7 @@ function syzygies{M <: AbstractModuleElement}(polynomials::AbstractVector{M})
         (i,j) for i in eachindex(polynomials) for j in eachindex(polynomials) if i < j
     ]
 
-    result = Vector{Vector{modulebasering(M)}}()
+    result = Vector{RowVector{modulebasering(M)}}()
 
     for (i,j) in pairs_to_consider
         a = polynomials[i]

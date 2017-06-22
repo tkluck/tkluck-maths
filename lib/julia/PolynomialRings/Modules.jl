@@ -5,7 +5,7 @@ import PolynomialRings.Groebner: red, groebner_basis, syzygies, groebner_basis
 
 export ModuleMorphism, HomspaceMorphism, lift, kernel, lift_and_obstruction
 
-abstract Morphism{P <: Polynomial}
+abstract type Morphism{P <: Polynomial} end
 
 type ModuleMorphism{P <: Polynomial} <: Morphism{P}
     m::Matrix{P}

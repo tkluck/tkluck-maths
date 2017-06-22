@@ -4,7 +4,7 @@ import PolynomialRings.Polynomials: AbstractBaseRing, Polynomial, Term, Monomial
 
 immutable ArrayCoefficient{ArrayType <: AbstractArray, Dims <: Val} <: AbstractBaseRing
     c::ArrayType
-    ArrayCoefficient(c::ArrayType) = new(c)
+    ArrayCoefficient{ArrayType,Dims}(c::ArrayType) where {ArrayType,Dims} = new(c)
 end
 ArrayCoefficient{ArrayType <: AbstractArray}(c::ArrayType) = ArrayCoefficient{ArrayType, Val{size(c)}}(c)
 
