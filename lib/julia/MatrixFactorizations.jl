@@ -2,7 +2,7 @@ module MatrixFactorizations
 
 using PolynomialRings: polynomial_ring
 
-export StrangeDuality, S1, T2, Dk_1, E6_1, E7_3
+export StrangeDuality, S1, T2, Dk_1, E6_1, E7_3, one_certain_unit_mf, E14_Q10
 
 StrangeDuality() = begin
     A, (x,y,z) = polynomial_ring(Int, :x, :y, :z)
@@ -93,5 +93,53 @@ E7_3() = begin
     [ zz q1; q0 zz ]
 end
 
+one_certain_unit_mf() = begin
+    A, (x,y,z,u,v,w) = polynomial_ring(Rational{BigInt}, :x, :y, :z, :u, :v, :w)
+
+    q1 = [ x^3 + x^2*u + x*u^2 + u^3 + z^2        0     y^2 + y*v + v^2      z*u + u*w;
+           0      x^3 + x^2*u + x*u^2 + u^3 + z^2 -z + w                           y - v;
+        -y + v          z*u + u*w                           x - u                        0;
+      -z + w         -y^2 - y*v - v^2                          0                     x - u]
+
+    q0 = [  x - u         0     -y^2 - y*v - v^2     -z*u - u*w;
+          0          x - u        z - w                -y + v ;
+       y - v      -z*u - u*w  x^3 + x^2*u + x*u^2 + u^3 + z^2   0 ;
+       z - w        y^2 + y*v + v^2   0   x^3 + x^2*u + x*u^2 + u^3 + z^2 ]
+
+    zz = zero(q1)
+
+    [ zz q1; q0 zz ]
+end
+
+E14_Q10() = begin A, (x,y,z,u,v,w) = polynomial_ring(Rational{Int}, :x, :y, :z, :u, :v, :w)
+    return x^4 +y^3 + x*z^2 - u^4*w -v^3 - w^2
+end
+
+unit_matrix_factorization(f, left_vars, right_vars) = begin
+
+
+
+end
+
+using PolynomialRings
+using QuasiHomogeneous: generic_matrix_factorizations
+function E14_Q10_possibilities()
+    R, vars = polynomial_ring(Int,:x,:y,:z,:u,:v,:w)
+    F = formal_coefficients(R,:c)
+    next_coeff() = take!(F)
+
+    generic_matrix_factorizations(4,7,7,24,(6,8,9,3,8,12),R,next_coeff)
+end
+
+function E14_Q10_grading()
+    d = [
+         12  15  16  19;
+          9  12  13  16;
+          8  11  12  15;
+          5   8   9  12
+    ]
+    z = fill(-1, 4,4)
+    [z d;d z]
+end
 
 end
