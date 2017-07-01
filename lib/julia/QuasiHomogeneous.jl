@@ -54,10 +54,10 @@ monomials_of_grading(total_grading::I, variable_gradings::NTuple{N, I}) where I 
     end
 end
 
-using PolynomialRings: monomial
+using PolynomialRings: construct_monomial
 
 function generic_quasihomogeneous_polynomial(total_grading::I, variable_gradings::NTuple{N, I}, R, next_coeff::Function) where I <: Integer where N
-    monomials = [monomial(R, e) for e in monomials_of_grading(total_grading, variable_gradings)]
+    monomials = [construct_monomial(R, e) for e in monomials_of_grading(total_grading, variable_gradings)]
     if(length(monomials) == 0)
         return next_coeff() * zero(R) # hack to make sure it has the same type
     else
