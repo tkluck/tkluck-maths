@@ -54,7 +54,7 @@ monomials_of_grading(total_grading::I, variable_gradings::NTuple{N, I}) where I 
     end
 end
 
-using PolynomialRings: construct_monomial
+using PolynomialRings: construct_monomial, formal_coefficients
 
 function generic_quasihomogeneous_polynomial(total_grading::I, variable_gradings::NTuple{N, I}, R, next_coeff::Function) where I <: Integer where N
     monomials = [construct_monomial(R, e) for e in monomials_of_grading(total_grading, variable_gradings)]
@@ -98,8 +98,10 @@ degrees_of_matrix_factorizations(rank::I, highest_free_generator_grading_source:
     end
 end
 
-generic_matrix_factorizations(rank::I, highest_free_generator_grading_source::I, highest_free_generator_grading_target::I, total_grading::I, variable_gradings::NTuple{N,I}, R, next_coeff::Function) where I <: Integer where N = Channel() do ch
+generic_matrix_factorizations(rank::I, highest_free_generator_grading_source::I, highest_free_generator_grading_target::I, total_grading::I, variable_gradings::NTuple{N,I}, R, c::Symbol) where I <: Integer where N = Channel() do ch
     for gradings in degrees_of_matrix_factorizations(rank, highest_free_generator_grading_source, highest_free_generator_grading_target, total_grading)
+        F = formal_coefficients(R,c)
+        next_coeff() = take!(F)
         push!(ch, generic_quasihomogeneous_map(gradings, variable_gradings, R, next_coeff))
     end
 end

@@ -111,9 +111,14 @@ one_certain_unit_mf() = begin
     [ zz q1; q0 zz ]
 end
 
-E14_Q10() = begin A, (x,y,z,u,v,w) = polynomial_ring(Rational{Int}, :x, :y, :z, :u, :v, :w)
+E14_Q10() = begin A, (x,y,z,u,v,w) = polynomial_ring(Int, :x, :y, :z, :u, :v, :w)
     return x^4 +y^3 + x*z^2 - u^4*w -v^3 - w^2
 end
+
+J3_0_Z13() = begin A, (x,y,z,u,v,w) = polynomial_ring(Int, :x, :y, :z, :u, :v, :w)
+    return x^6*y + y^3 + z^2 - u^6 - u*v^3 - w^2
+end
+
 
 unit_matrix_factorization(f, left_vars, right_vars) = begin
 
@@ -123,12 +128,10 @@ end
 
 using PolynomialRings
 using QuasiHomogeneous: generic_matrix_factorizations
-function E14_Q10_possibilities()
+function E14_Q10_possibilities(highest_free_generator_grading_source=7, highest_free_generator_grading_target=7)
     R, vars = polynomial_ring(Int,:x,:y,:z,:u,:v,:w)
-    F = formal_coefficients(R,:c)
-    next_coeff() = take!(F)
 
-    generic_matrix_factorizations(4,7,7,24,(6,8,9,3,8,12),R,next_coeff)
+    generic_matrix_factorizations(4,highest_free_generator_grading_source, highest_free_generator_grading_target,24,(6,8,9,3,8,12),R,:c)
 end
 
 function E14_Q10_grading()
@@ -140,6 +143,12 @@ function E14_Q10_grading()
     ]
     z = fill(-1, 4,4)
     [z d;d z]
+end
+
+function J3_0_Z13_possibilities(highest_free_generator_grading_source, highest_free_generator_grading_target)
+    R, vars = polynomial_ring(Int,:x,:y,:z,:u,:v,:w)
+
+    generic_matrix_factorizations(4,highest_free_generator_grading_source,highest_free_generator_grading_target,18,(2,6,9,3,5,9),R,:c)
 end
 
 end
