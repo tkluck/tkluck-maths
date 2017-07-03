@@ -15,6 +15,7 @@ init(cargo_cult_1, cargo_cult_1_again, cargo_cult_0, logging_file_handle) = ccal
 reset_coeffs(cargo_cult_1) = ccall((:FGb_int_reset_coeffs, :libfgb), Void, (UInt32,), cargo_cult_1)
 reset_expos(nvars1, nvars2, varnames) = ccall((:FGb_int_reset_expos, :libfgb), Void, (UInt32,UInt32,Ref{Cstring}), nvars1, nvars2, varnames)
 internal_threads(n) = ccall((:FGb_int_internal_threads, :libfgb), Void, (UInt32,), n)
+mod_internal_threads(n) = ccall((:FGb_internal_threads, :libfgb), Void, (UInt32,), n)
 
 creat_poly(num_terms) = ccall((:FGb_int_creat_poly, :libfgb), Ptr{Void}, (UInt32,), num_terms)
 exp = UInt32[0,1,1,0,0]
@@ -84,15 +85,17 @@ function FGb_with(f::Function, ::Type{NP}) where NP<:NamedPolynomial
     reset_expos(length(varnames), 0, varnames)
 
     internal_threads(1)
+    mod_internal_threads(1)
 
     in_FGb = true
-    try
+    res = try
         f(p -> convert(FGbPolynomial{NP}, p))
     finally
         in_FGb = false
         reset_memory()
         exit_INT()
     end
+    res
 end
 
 import Base: convert, show
