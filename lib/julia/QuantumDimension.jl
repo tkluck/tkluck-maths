@@ -12,7 +12,7 @@ function supertrace(Q::Matrix)
 end
 
 function multivariate_residue(g, f, vars...)
-    R = typeof(g)
+    R = eltype(f)
     G,tr = groebner_basis(f)
 
     # TODO: compute that R/G is finite dimensional; otherwise, this computation
