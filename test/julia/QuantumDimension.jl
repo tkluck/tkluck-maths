@@ -1,7 +1,7 @@
 using Base.Test
 
 @testset "QuantumDimension" begin
-    using QuantumDimension
+    using OrbifoldEquivalence
     using PolynomialRings
 
     R,(x,y) = polynomial_ring(Rational{Int}, :x, :y)

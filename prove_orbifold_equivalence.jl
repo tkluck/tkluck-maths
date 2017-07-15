@@ -1,6 +1,6 @@
 using PolynomialRings
 using PolynomialRings: terms
-using QuantumDimension
+using OrbifoldEquivalence
 using QuasiHomogeneous
 
 using StatProfilerHTML
@@ -33,8 +33,8 @@ if n_variables == 1
 
     Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, ch)
 
-    qdim1 = @coefficient QuantumDimension.quantum_dimension(Q,W,[:x],[:y]) x^0*y^0
-    qdim2 = @coefficient QuantumDimension.quantum_dimension(Q,V,[:y],[:x]) x^0*y^0
+    qdim1 = @coefficient quantum_dimension(Q,W,[:x],[:y]) x^0*y^0
+    qdim2 = @coefficient quantum_dimension(Q,V,[:y],[:x]) x^0*y^0
 
 # -----------------------------
 # two variable case: reflexivity
@@ -58,8 +58,8 @@ elseif n_variables == 2
 
     Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, ch)
 
-    qdim1 = @coefficient QuantumDimension.quantum_dimension(Q,W,[:x,:y],[:u,:v]) x^0*y^0*u^0*v^0
-    qdim2 = @coefficient QuantumDimension.quantum_dimension(Q,V,[:u,:v],[:x,:y]) x^0*y^0*u^0*v^0
+    qdim1 = @coefficient quantum_dimension(Q,W,[:x,:y],[:u,:v]) x^0*y^0*u^0*v^0
+    qdim2 = @coefficient quantum_dimension(Q,V,[:u,:v],[:x,:y]) x^0*y^0*u^0*v^0
 
 # -----------------------------
 # three variable case: E14 ~ Q10
@@ -79,8 +79,8 @@ elseif n_variables == 3
 
     Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, ch)
 
-    qdim1 = @coefficient QuantumDimension.quantum_dimension(Q,W,[:x,:y,:z],[:u,:v,:w]) x^0*y^0*z^0*u^0*v^0*w^0
-    qdim2 = @coefficient QuantumDimension.quantum_dimension(Q,V,[:u,:v,:w],[:x,:y,:z]) x^0*y^0*z^0*u^0*v^0*w^0
+    qdim1 = @coefficient quantum_dimension(Q,W,[:x,:y,:z],[:u,:v,:w]) x^0*y^0*z^0*u^0*v^0*w^0
+    qdim2 = @coefficient quantum_dimension(Q,V,[:u,:v,:w],[:x,:y,:z]) x^0*y^0*z^0*u^0*v^0*w^0
 
 end
 

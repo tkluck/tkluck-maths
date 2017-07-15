@@ -1,4 +1,4 @@
-module QuantumDimension
+module OrbifoldEquivalence
 
 using PolynomialRings
 
