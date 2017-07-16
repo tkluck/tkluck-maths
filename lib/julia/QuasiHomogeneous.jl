@@ -56,16 +56,16 @@ end
 
 using PolynomialRings: construct_monomial, formal_coefficients
 
-function generic_quasihomogeneous_polynomial(total_grading::I, variable_gradings::NTuple{N, I}, R, next_coeff::Function) where I <: Integer where N
+function generic_quasihomogeneous_polynomial(total_grading::I, variable_gradings::NTuple{N, I}, R, next_coeff::Channel) where I <: Integer where N
     monomials = [construct_monomial(R, e) for e in monomials_of_grading(total_grading, variable_gradings)]
     if(length(monomials) == 0)
-        return next_coeff() * zero(R) # hack to make sure it has the same type
+        return take!(next_coeff) * zero(R) # hack to make sure it has the same type
     else
-        return sum(next_coeff()*m for m in monomials)
+        return sum(take!(next_coeff)*m for m in monomials)
     end
 end
 
-function generic_quasihomogeneous_map(gradings::Array{I}, variable_gradings::NTuple{N,I}, R, next_coeff::Function) where I <: Integer where N
+function generic_quasihomogeneous_map(gradings::Array{I}, variable_gradings::NTuple{N,I}, R, next_coeff::Channel) where I <: Integer where N
 
     return [ generic_quasihomogeneous_polynomial(g, variable_gradings, R, next_coeff) for g in gradings ]
 
@@ -100,8 +100,7 @@ end
 
 generic_matrix_factorizations(rank::I, highest_free_generator_grading_source::I, highest_free_generator_grading_target::I, total_grading::I, variable_gradings::NTuple{N,I}, R, c::Symbol) where I <: Integer where N = Channel() do ch
     for gradings in degrees_of_matrix_factorizations(rank, highest_free_generator_grading_source, highest_free_generator_grading_target, total_grading)
-        F = formal_coefficients(R,c)
-        next_coeff() = take!(F)
+        next_coeff = formal_coefficients(R,c)
         push!(ch, generic_quasihomogeneous_map(gradings, variable_gradings, R, next_coeff))
     end
 end
