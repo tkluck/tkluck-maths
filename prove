@@ -1,0 +1,25 @@
+#!make -f
+
+all: prove
+
+julia:
+	curl https://julialang-s3.julialang.org/bin/linux/x64/0.6/julia-0.6.0-linux-x86_64.tar.gz | tar -xz
+	ln -s julia-903644385b/bin/julia"
+
+.julia/v0.6/PolynomialRings: julia
+	./julia -e 'Pkg.clone("https://github.com/tkluck/PolynomialRings.jl.git")'
+
+.julia/v0.6/StatProfilerHTML: julia
+	./julia -e 'Pkg.add("StatProfilerHTML")'
+
+tkluck-maths:
+	git clone https://github.com/tkluck/tkluck-maths.git
+
+.juliarc.jl: tkluck-maths
+	ln -s tkluck-maths/SageMathCloud/.juliarc.jl
+
+packages: tkluck-maths .julia/v0.6/PolynomialRings .julia/v0.6/StatProfilerHTML
+
+prove: .juliarc.jl packages
+	JULIA_NUM_THREADS=4 ./julia tkluck-maths/prove_orbifold_equivalence.jl
+
