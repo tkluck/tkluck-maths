@@ -5,8 +5,8 @@ using QuasiHomogeneous
 
 using StatProfilerHTML
 
-const n_variables = 3
-const dense_monomials = false
+const n_variables = 2
+const dense_monomials = true
 const use_FGb = false          # only with dense monomials!
 
 # within the if block, we define:
