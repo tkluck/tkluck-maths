@@ -1,5 +1,7 @@
 module QuasiHomogeneous
 
+using PolynomialRings
+
 monomials_of_grading(total_grading::I, variable_gradings::NTuple{0, I}) where I <: Integer = Channel(ctype=NTuple{0, I}) do ch
 end
 
@@ -103,6 +105,18 @@ generic_matrix_factorizations(rank::I, highest_free_generator_grading_source::I,
         next_coeff = formal_coefficients(R,c)
         push!(ch, (next_coeff, generic_quasihomogeneous_map(gradings, variable_gradings, R, next_coeff)))
     end
+end
+
+function find_quasihomogeneous_degrees(f::NamedPolynomial, vars::Symbol...)
+    exps = [e_i for (e,c) in expansion(f, vars...) for e_i in e]
+    exps = reshape(exps, (div(length(exps), length(vars)), length(vars)))
+    exps = exps // 1
+
+    gradings = exps \ [1 for _=1:size(exps,1)]
+
+    k = lcm(map(denominator,gradings)...)
+
+    k, tuple([numerator(k*g) for g in gradings]...)
 end
 
 

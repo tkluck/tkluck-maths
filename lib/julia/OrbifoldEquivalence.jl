@@ -50,21 +50,25 @@ function quantum_dimension(Q::Matrix, W, left_vars, right_vars)
     return multivariate_residue(g, f, left_vars...)
 end
 
-function equivalence_exists(R, W, Wvars, Wgradings, V, Vvars, Vgradings, total_grading, rank, a, b)
+function equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
 
     R,allvars = polynomial_ring(Rational{BigInt}, Wvars..., Vvars...)
 
-    vgr = tuple([collect(Wgradings); collect(Vgradings)]...)
+    total_grading, vgr = QuasiHomogeneous.find_quasihomogeneous_degrees(W - V, Wvars..., Vvars...)
 
     for (next_coeff,Q) in QuasiHomogeneous.generic_matrix_factorizations(rank, a, b, total_grading, vgr, R, :c)
 
         c1 = take!(next_coeff)
+        C = [coefficient(t) for entry in (Q^2 - c1^2*(V-W)*eye(Int,size(Q)...)) for t in entry.p.terms]
+
+        if 1 in C
+            continue
+        end
+
         qdim1 = constant_coefficient(quantum_dimension(Q,W,Wvars,Vvars), Vvars...)
         qdim2 = constant_coefficient(quantum_dimension(Q,V,Vvars,Wvars), Wvars...)
 
-        C = [coefficient(t) for entry in (Q^2 - c1^2*(V-W)*eye(Int,size(Q)...)) for t in entry.p.terms]
-
-        if 1 in C || iszero(qdim1) || iszero(qdim2)
+        if iszero(qdim1) || iszero(qdim2)
             continue
         end
 
@@ -86,13 +90,13 @@ function equivalence_exists(R, W, Wvars, Wgradings, V, Vvars, Vgradings, total_g
     return false
 end
 
-function is_orbifold_equivalent(R, W, Wvars, Wgradings, V, Vvars, Vgradings, total_grading, N=Inf)
+function is_orbifold_equivalent(R, W, Wvars, V, Vvars, N=Inf)
 
     for S = Base.Iterators.countfrom(1)
         for rank = 1:S
             for a = 0:(S-rank)
                 for b = 0:(S-rank-a)
-                    if equivalence_exists(R, W, Wvars, Wgradings, V, Vvars, Vgradings, total_grading, rank, a, b)
+                    if equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
                         return true
                     end
                     if (N-=1)<=0
