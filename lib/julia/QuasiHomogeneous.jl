@@ -109,7 +109,7 @@ end
 
 function find_quasihomogeneous_degrees(f::NamedPolynomial, vars::Symbol...)
     exps = [e_i for (e,c) in expansion(f, vars...) for e_i in e]
-    exps = reshape(exps, (div(length(exps), length(vars)), length(vars)))
+    exps = reshape(exps, (length(vars), div(length(exps), length(vars))))'
     exps = exps // 1
 
     gradings = exps \ [1 for _=1:size(exps,1)]
