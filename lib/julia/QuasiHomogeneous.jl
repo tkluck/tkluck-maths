@@ -83,7 +83,7 @@ degrees_of_homogeneous_map(rank::I, highest_free_generator_grading_source::I, hi
 end
 
 degrees_of_matrix_factorizations(rank::I, highest_free_generator_grading_source::I, highest_free_generator_grading_target::I, total_grading::I) where I <: Integer = Channel(ctype=Array{I,2}) do ch
-    for t in [div(total_grading,2)] #0:total_grading
+    for t in 0:total_grading
         for h in monomials_of_grading(highest_free_generator_grading_source, ntuple(i->1, rank-1))
             for v in monomials_of_grading(highest_free_generator_grading_target, ntuple(i->1, rank-1))
                 horizontal_gradings = [0; cumsum(collect(h))]
@@ -101,7 +101,7 @@ end
 generic_matrix_factorizations(rank::I, highest_free_generator_grading_source::I, highest_free_generator_grading_target::I, total_grading::I, variable_gradings::NTuple{N,I}, R, c::Symbol) where I <: Integer where N = Channel() do ch
     for gradings in degrees_of_matrix_factorizations(rank, highest_free_generator_grading_source, highest_free_generator_grading_target, total_grading)
         next_coeff = formal_coefficients(R,c)
-        push!(ch, generic_quasihomogeneous_map(gradings, variable_gradings, R, next_coeff))
+        push!(ch, (next_coeff, generic_quasihomogeneous_map(gradings, variable_gradings, R, next_coeff)))
     end
 end
 
