@@ -78,6 +78,8 @@ function equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
         qdim2 = converted[2]
         C = converted[3:end]
 
+        info("Found a potentially interesting matrix: doing the full computation.")
+
         CC = groebner_basis(C, Val{false}, max_degree=max(deg(qdim1),deg(qdim2)))
 
         qdim1_red,_ = red(qdim1, CC)
@@ -96,6 +98,7 @@ function is_orbifold_equivalent(R, W, Wvars, V, Vvars, N=Inf)
         for rank = 1:S
             for a = 0:(S-rank)
                 for b = 0:(S-rank-a)
+                    info("Trying rank=$rank, graded module isomorphism class = ($a, $b)")
                     if equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
                         return true
                     end
