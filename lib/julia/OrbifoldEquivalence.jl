@@ -97,14 +97,14 @@ function is_orbifold_equivalent(R, W, Wvars, V, Vvars, N=Inf)
     for S = Base.Iterators.countfrom(1)
         for rank = 1:S
             for a = 0:(S-rank)
-                for b = 0:(S-rank-a)
-                    info("Trying rank=$rank, graded module isomorphism class = ($a, $b)")
-                    if equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
-                        return true
-                    end
-                    if (N-=1)<=0
-                        return null
-                    end
+                b= S-rank-a
+
+                info("Trying rank=$rank, graded module isomorphism class = ($a, $b)")
+                if equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
+                    return true
+                end
+                if (N-=1)<=0
+                    return null
                 end
             end
         end
