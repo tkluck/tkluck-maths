@@ -104,11 +104,11 @@ else
     using FGb
     CC = FGb_with(eltype(C)) do FGbPolynomial
         println(STDERR, "Converting to FGb representation...")
-        G = map(FGbPolynomial, C_dense)
+        G = map(FGbPolynomial, C)
         println(STDERR, "Computing groebner basis...")
         @time gr = groebner(G)
         println(STDERR, "Done")
-        map(g -> convert(eltype(C_dense),g), gr)
+        map(g -> convert(eltype(C),g), gr)
     end
 end
 
