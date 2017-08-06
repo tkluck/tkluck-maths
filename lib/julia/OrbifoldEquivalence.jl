@@ -52,7 +52,7 @@ end
 
 function equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
 
-    R,allvars = polynomial_ring(Rational{BigInt}, Wvars..., Vvars...)
+    R,allvars = polynomial_ring(Wvars..., Vvars...)
 
     total_grading, vgr = QuasiHomogeneous.find_quasihomogeneous_degrees(W - V, Wvars..., Vvars...)
 

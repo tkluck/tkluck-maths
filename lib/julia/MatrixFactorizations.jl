@@ -1,11 +1,11 @@
 module MatrixFactorizations
 
-using PolynomialRings: polynomial_ring
+using PolynomialRings
 
 export StrangeDuality, S1, T2, Dk_1, E6_1, E7_3, one_certain_unit_mf, E14_Q10
 
 StrangeDuality() = begin
-    A, (x,y,z) = polynomial_ring(Int, :x, :y, :z)
+    A = @ring ℤ[x,y,z]
 
     d1 = [z   y^2 x^3 0 ; y -x*z 0 x^3 ; x 0 -x*z -y^2 ; 0 x -y z  ]
     d0 = [x*z y^2 x^3 0 ; y -z   0 x^3 ; x 0 -z   -y^2 ; 0 x -y x*z]
@@ -15,7 +15,7 @@ StrangeDuality() = begin
 end
 
 S1() = begin
-    A, (x,y) = polynomial_ring(Int, :x, :y)
+    A = @ring ℤ[x,y]
 
     q1=[x x*y; -y -x^3]
     q0=[x^3 x*y; -y -x]
@@ -25,7 +25,7 @@ S1() = begin
 end
 
 T2() = begin
-    A, (x,y) = polynomial_ring(Int, :x, :y)
+    A = @ring ℤ[x,y]
 
     q1 = [x^2 y ; -y -x^2]
     q0 = [x^3 x*y; -x*y -x^3]
@@ -37,7 +37,7 @@ end
 # The following are the factorizations from [22]
 
 Dk_1(k::Integer, l::Integer) = begin
-    A, (x,y,z) = polynomial_ring(Int, :x, :y, :z)
+    A = @ring ℤ[x,y,z]
 
     if k == 1
         q1 = [z x^2 + y^(j-2); y -z]
@@ -67,7 +67,7 @@ Dk_1(k::Integer, l::Integer) = begin
 end
 
 E6_1() = begin
-    A, (x,y,z) = polynomial_ring(Int, :x, :y, :z)
+    A = @ring ℤ[x,y,z]
 
     q1 = [-z 0 x^2 y^3; 0 -z y -x; x y^3 z 0; y -x^2 0 z]
     q0 = q1
@@ -77,7 +77,7 @@ E6_1() = begin
 end
 
 E7_3() = begin
-    A, (x,y,z) = polynomial_ring(Rational{Int}, :x, :y, :z)
+    A = @ring ℚ[x,y,z]
 
     q1 = [-z 0 x*y -y^2 0 0 x^2 0;
           0 -z 0 y^2 0 0 0 x;
@@ -94,7 +94,7 @@ E7_3() = begin
 end
 
 one_certain_unit_mf() = begin
-    A, (x,y,z,u,v,w) = polynomial_ring(Rational{BigInt}, :x, :y, :z, :u, :v, :w)
+    A = @ring ℚ[x,y,z,u,v,w]
 
     q1 = [ x^3 + x^2*u + x*u^2 + u^3 + z^2        0     y^2 + y*v + v^2      z*u + u*w;
            0      x^3 + x^2*u + x*u^2 + u^3 + z^2 -z + w                           y - v;
@@ -111,11 +111,13 @@ one_certain_unit_mf() = begin
     [ zz q1; q0 zz ]
 end
 
-E14_Q10() = begin A, (x,y,z,u,v,w) = polynomial_ring(Int, :x, :y, :z, :u, :v, :w)
+E14_Q10() = begin
+    A = @ring ℚ[x,y,z,u,v,w]
     return x^4 +y^3 + x*z^2 - u^4*w -v^3 - w^2
 end
 
-J3_0_Z13() = begin A, (x,y,z,u,v,w) = polynomial_ring(Int, :x, :y, :z, :u, :v, :w)
+J3_0_Z13() = begin
+    A = @ring ℚ[x,y,z,u,v,w]
     return x^6*y + y^3 + z^2 - u^6 - u*v^3 - w^2
 end
 
@@ -129,7 +131,7 @@ end
 using PolynomialRings
 using QuasiHomogeneous: generic_matrix_factorizations
 function E14_Q10_possibilities(highest_free_generator_grading_source=7, highest_free_generator_grading_target=7)
-    R, vars = polynomial_ring(Int,:x,:y,:z,:u,:v,:w)
+    R, vars = polynomial_ring(:x,:y,:z,:u,:v,:w)
 
     generic_matrix_factorizations(4,highest_free_generator_grading_source, highest_free_generator_grading_target,24,(6,8,9,3,8,12),R,:c)
 end
@@ -146,7 +148,7 @@ function E14_Q10_grading()
 end
 
 function J3_0_Z13_possibilities(highest_free_generator_grading_source, highest_free_generator_grading_target)
-    R, vars = polynomial_ring(Int,:x,:y,:z,:u,:v,:w)
+    R, vars = polynomial_ring(:x,:y,:z,:u,:v,:w)
 
     generic_matrix_factorizations(4,highest_free_generator_grading_source,highest_free_generator_grading_target,18,(2,6,9,3,5,9),R,:c)
 end

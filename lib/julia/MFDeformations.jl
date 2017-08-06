@@ -110,7 +110,7 @@ function deformation(Q, var_symbols...; max_order=20)
     if length(var_symbols) < length(H)
         throw(ArgumentError("Need at least $( length(H) ) variables for this deformation"))
     end
-    _, vars = polynomial_ring(Int, var_symbols...)
+    _, vars = polynomial_ring(var_symbols...)
 
     Q1 = sum(w * h for (w,h) in zip(vars, H))
     Qdef = Q1

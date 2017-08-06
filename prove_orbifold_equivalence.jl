@@ -19,7 +19,7 @@ const use_FGb = false          # only with dense monomials!
 # one variable case: reflexivity
 # -----------------------------
 if n_variables == 1
-    R,(x,y) = polynomial_ring(Rational{BigInt}, :x, :y)
+    R = @ring ℚ[x,y]
 
     const d = 6
     W = x^d
@@ -40,7 +40,7 @@ if n_variables == 1
 # two variable case: reflexivity
 # -----------------------------
 elseif n_variables == 2
-    R,(x,y,u,v) = polynomial_ring(Rational{BigInt}, :x, :y, :u, :v)
+    R = @ring ℚ[x,y,u,v]
 
     const d = 3
     W = x^d - y^d
@@ -66,7 +66,7 @@ elseif n_variables == 2
 # -----------------------------
 elseif n_variables == 3
     using MatrixFactorizations
-    R,(x,y,z,u,v,w) = polynomial_ring(Rational{BigInt}, :x, :y, :z, :u, :v, :w)
+    R = @ring ℚ[x,y,z,u,v,w]
 
     W = x^4 + y^3 + x*z^2
     V = u^4*w + v^3 + w^2
