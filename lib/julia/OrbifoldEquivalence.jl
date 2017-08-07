@@ -50,27 +50,72 @@ function quantum_dimension(Q::Matrix, W, left_vars, right_vars)
     return multivariate_residue(g, f, left_vars...)
 end
 
-function equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
+
+enumerate_admissible_gradings(f::Function, N::Integer, W, vars...) = enumerate_admissible_gradings(f, Val{N}, W, vars...)
+
+function enumerate_admissible_gradings(f::Function, ::Type{Val{N}}, W, vars...) where N
+    total_grading, vgr = QuasiHomogeneous.find_quasihomogeneous_degrees(W, vars...)
+    grading = e -> sum(e.*vgr)
+
+    term_exponents = map(i->i[1], expansion(W, vars...))
+    n_terms = length(term_exponents)
+    n_vars  = length(vars)
+
+    all_exponents = vcat([collect(t) for t in term_exponents]...)
+
+    admissible_rows = Set{NTuple{N,Int}}()
+
+    for ee in Base.Iterators.product([0:k for k in all_exponents]...)
+        divisor_gradings = sort([grading(ee[i:i+n_vars-1]) for i=1:n_vars:length(ee)])
+
+        if N == length(divisor_gradings)
+            push!(admissible_rows, ntuple(i->divisor_gradings[i], Val{N}))
+        else
+            throw(AssertionError("Not implemented"))
+        end
+    end
+
+    for row in admissible_rows
+        col = ntuple(i -> total_grading - row[i], Val{N})
+
+        if all( (row .+ (col[k] - col[1])) in admissible_rows for k = 2:N)
+            m = [ row[j] + (col[k] - col[1]) for j=1:N, k=1:N ]
+            n = [ col[k] + (row[j] - row[1]) for j=1:N, k=1:N ]
+            z = fill(-1, size(m))
+            if f( [ z m; n z] )
+                break
+            end
+        end
+    end
+end
+
+function equivalence_exists(W, Wvars, V, Vvars, rank)
 
     R,allvars = polynomial_ring(Wvars..., Vvars...)
 
     total_grading, vgr = QuasiHomogeneous.find_quasihomogeneous_degrees(W - V, Wvars..., Vvars...)
 
-    for (next_coeff,Q) in QuasiHomogeneous.generic_matrix_factorizations(rank, a, b, total_grading, vgr, R, :c)
+    found = false
 
+    enumerate_admissible_gradings(rank, W - V, Wvars..., Vvars...) do gr
+        next_coeff = formal_coefficients(R,:c)
         c1 = take!(next_coeff)
+
+        Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, next_coeff)
+
         C = [coefficient(t) for entry in (Q^2 - c1^2*(V-W)*eye(Int,size(Q)...)) for t in entry.p.terms]
 
-        if 1 in C
-            continue
-        end
+        @assert(!(coefficient((-c1^2).p.terms[1]) in C))
 
         qdim1 = constant_coefficient(quantum_dimension(Q,W,Wvars,Vvars), Vvars...)
         qdim2 = constant_coefficient(quantum_dimension(Q,V,Vvars,Wvars), Wvars...)
 
         if iszero(qdim1) || iszero(qdim2)
-            continue
+            info("Found an admissible grading distribution, but its quantum dimension vanishes identically")
+            return false # continue
         end
+
+        info("Found a potentially interesting grading distribution: doing the full computation.")
 
         # to dense monomials
         converted = to_dense_monomials([qdim1; qdim2; C])
@@ -78,7 +123,6 @@ function equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
         qdim2 = converted[2]
         C = converted[3:end]
 
-        info("Found a potentially interesting matrix: doing the full computation.")
 
         CC = groebner_basis(C, Val{false}, max_degree=max(deg(qdim1),deg(qdim2)))
 
@@ -86,29 +130,26 @@ function equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
         qdim2_red,_ = red(qdim2, CC)
 
         if !iszero(qdim1_red) && !iszero(qdim2_red)
+            info("Found one!")
+            found = true
+            return true # break
+        else
+            info("Unfortunately, for this grading distribution, no solutions exist with a non-vanising quantum dimension.")
+        end
+    end
+    return found ? true : null
+end
+
+function is_orbifold_equivalent(W, Wvars, V, Vvars, max_rank=Inf)
+
+    for rank = Base.Iterators.countfrom(2)  # FIXME: generic_quasihomogeneous_map breaks on rank=1
+        rank > max_rank && break
+        info("Trying rank=$rank")
+        if equivalence_exists(W, Wvars, V, Vvars, rank)
             return true
         end
     end
-    return false
-end
-
-function is_orbifold_equivalent(R, W, Wvars, V, Vvars, N=Inf)
-
-    for S = Base.Iterators.countfrom(1)
-        for rank = 1:S
-            for a = 0:(S-rank)
-                b= S-rank-a
-
-                info("Trying rank=$rank, graded module isomorphism class = ($a, $b)")
-                if equivalence_exists(R, W, Wvars, V, Vvars, rank, a, b)
-                    return true
-                end
-                if (N-=1)<=0
-                    return null
-                end
-            end
-        end
-    end
+    return null
 end
 
 export supertrace, multivariate_residue, quantum_dimension, equivalence_exists, is_orbifold_equivalent
