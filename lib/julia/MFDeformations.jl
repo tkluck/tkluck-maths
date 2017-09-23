@@ -1,12 +1,9 @@
 module MFDeformations
 
-using PolynomialRings: polynomial_ring, expansion
-using PolynomialRings.Polynomials: Polynomial, basering
-using PolynomialRings.Modules: HomspaceMorphism, kernel, span, lift_and_obstruction
-using PolynomialRings.Groebner: groebner_basis, red
+using PolynomialRings
+using HomspaceMorphisms: HomspaceMorphism, kernel, span, lift_and_obstruction
 
-
-function diff{P <: Polynomial}(Q::Matrix{P})
+function diff(Q::Matrix{P}) where P <: NamedPolynomial
     two_n,two_m = size(Q)
     if two_n != two_m || two_n % 2 != 0
         throw(ArgumentError("The matrix Q needs to be a 2n x 2n block matrix"))
@@ -29,7 +26,7 @@ function diff{P <: Polynomial}(Q::Matrix{P})
     return dQ, dQ_even, dQ_odd
 end
 
-function colspan{R <:Number}(M::Matrix{R})
+function colspan(M::Matrix{R}) where R <: Number
     M = copy(M)
     for j in indices(M, 2)
         for i in indices(M, 1)
@@ -49,15 +46,14 @@ function colspan{R <:Number}(M::Matrix{R})
     return M
 end
 
-import PolynomialRings.Polynomials: Term, Monomial
-function H1{P <: Polynomial}(Q::Matrix{P})
+function H1(Q::Matrix{P}) where P <: NamedPolynomial
     dQ, dQ_even, dQ_odd = diff(Q)
     return H1(Q, dQ_even, dQ_odd)
 end
 
 
 
-function H1{P <: Polynomial}(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P})
+function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where P <: NamedPolynomial
     groeb,transformation = groebner_basis(dQ_odd)
 
     H1 = map(kernel(dQ_even)) do k
@@ -134,7 +130,8 @@ function deformation(Q, var_symbols...; max_order=20)
             (a,b)->(a[1]+b[1],a[2]+b[2]),
             (zero(Q), zero(Q)),
             expansion(MC, var_symbols...)) do x
-            w, MC_w = x
+            exps, MC_w = x
+            w = prod(v^e for (v,e) in zip(vars,exps))
             Q_w, obs_w = lift_and_obstruction(dQ_even, -MC_w)
             (w*Q_w, w*obs_w)
         end
@@ -144,7 +141,7 @@ function deformation(Q, var_symbols...; max_order=20)
         Qdef += Q_next
         sumobs += obs_next
 
-        println(STDERR, "Step $(ord): $( toq() )")
+        info("Step $(ord): $( toq() )")
     end
 
     return Q + Qdef

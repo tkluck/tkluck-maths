@@ -1,6 +1,5 @@
-using PolynomialRings: polynomial_ring
-using MFDeformations: diff, H1, deformation
-
+using PolynomialRings
+using MFDeformations: deformation
 
 using MatrixFactorizations
 
@@ -8,7 +7,7 @@ using MatrixFactorizations
 
 
 println("Finding deformations for:")
-Q = T2()
+Q = base_extend(T2())
 display(Q); println()
 
 symbols = [Symbol("w$i") for i=1:40]
