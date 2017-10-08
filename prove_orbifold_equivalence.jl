@@ -87,7 +87,7 @@ end
 # -----------------------------
 # computation
 # -----------------------------
-C = [coefficient(t) for entry in (Q^2 - c1^2*(V-W)*eye(Int,size(Q)...)) for t in terms(entry.p)]
+C = [coefficient(t) for entry in (Q^2 - c1^2*(V-W)*eye(Int,size(Q)...)) for t in terms(entry)]
 
 if dense_monomials
     yada = to_dense_monomials([qdim1; qdim2; C])

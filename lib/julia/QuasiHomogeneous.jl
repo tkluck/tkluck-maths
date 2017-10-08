@@ -107,7 +107,7 @@ generic_matrix_factorizations(rank::I, highest_free_generator_grading_source::I,
     end
 end
 
-function find_quasihomogeneous_degrees(f::NamedPolynomial, vars::Symbol...)
+function find_quasihomogeneous_degrees(f::Polynomial, vars::Symbol...)
     exps = [e_i for (e,c) in expansion(f, vars...) for e_i in e]
     exps = reshape(exps, (length(vars), div(length(exps), length(vars))))'
     exps = exps // 1

@@ -100,10 +100,9 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
     enumerate_admissible_gradings(rank, W - V, Wvars..., Vvars...) do gr
         next_coeff = formal_coefficients(R,:c)
         c1 = take!(next_coeff)
-
         Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, next_coeff)
 
-        C = [coefficient(t) for entry in (Q^2 - c1^2*(V-W)*eye(Int,size(Q)...)) for t in entry.p.terms]
+        C = flat_coefficients(Q^2 - c1^2*(V-W)*eye(Int,size(Q)...), Wvars..., Vvars...)
 
         @assert(!(coefficient((-c1^2).p.terms[1]) in C))
 
