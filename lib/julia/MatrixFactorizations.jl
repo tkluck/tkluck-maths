@@ -113,7 +113,7 @@ end
 
 E14_Q10() = begin
     A = @ring ℚ[x,y,z,u,v,w]
-    return x^4 +y^3 + x*z^2 - u^4*w -v^3 - w^2
+    return (u^4*w + v^3 + w^2) - (x^4 + y^3 + x*z^2)
 end
 
 J3_0_Z13() = begin
@@ -145,6 +145,46 @@ function E14_Q10_grading()
     ]
     z = fill(-1, 4,4)
     [z d;d z]
+end
+
+function E14_Q10_matrix_and_equations()
+    R = @ring ℚ[a,b,c]
+    S = @ring R[x,y,z,u,v,w]
+
+    κ1 = a^3//2 + a^2*b + a*b^2 - a^2*c//2 - a*b*c
+    κ2 = 1 + 3a^4//4 + 3a^3*b + 4a^2*b^2 + 2a*b^3  - a^3*c - 3*a^2*b*c - 2a*b^2*c
+
+    x15 = κ1*u^3+a*u*x+z
+    x16 = v^2+v*y+y^2
+    x17 = κ2*u^4//2+w-a*(-a-2b)*u^2*x//2+x^2+b*u*z
+    x25 = y-v
+    x26 = (-b-b^2*κ1+(c-a)*κ2//2)*u^5+(-a-2b+c)*u*w+c*u*x^2+b*(-a-b+c)*u^2*z-x*z
+    x35 = (-1+(-a-2b+c)*κ1+κ2//2)*u^4-w+a*(-a-2b+2c)*u^2*x//2+x^2+(-a-b+c)*u*z
+
+    x73 = x62 = x48 = x15
+    x74 = x16; x38 = x52 = -x16
+    x28 = x17; x53 = x64 = -x17
+    x83 = x25; x61 = x47 = -x25
+    x51 = x84 = x37 = x26
+    x46 = x35; x82 = x71 = -x35
+
+    d1 = [x15 x16 x17   0;
+          x25 x26   0 x28;
+          x35   0 x37 x38;
+            0 x46 x47 x48]
+    d2 = [x51 x52 x53   0;
+          x61 x62   0 x64;
+          x71   0 x73 x74;
+            0 x82 x83 x84]
+
+     z = zero(d1)
+
+     Q = [z d1; d2 z]
+
+     eq1 = (-4+3a^4+8a^3*b+8a^2*b^2-4a^3*c-8*a^2*b*c)*(4+3a^4+8a^3*b+8a^2*b^2-4a^3*c-8a^2*b*c)
+     eq2 = a^2*(a^4-8a^2*b^2-16a*b^3-8b^4+8a^2*b*c+24a*b^2*c+16b^3*c-2a^2*c^2-8a*b*c^2-8b^2*c^2)
+
+     Q, eq1, eq2
 end
 
 function J3_0_Z13_possibilities(highest_free_generator_grading_source, highest_free_generator_grading_target)
