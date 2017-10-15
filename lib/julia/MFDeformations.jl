@@ -3,9 +3,10 @@ module MFDeformations
 using PolynomialRings
 using HomspaceMorphisms: HomspaceMorphism, kernel, span, lift_and_obstruction
 
-using ExactLinearAlgebra: colspan
+using ExactLinearAlgebra
+using QuasiHomogeneous
 
-function diff(Q::Matrix{P}) where P <: NamedPolynomial
+function diff(Q::Matrix{P}) where P <: Polynomial
     two_n,two_m = size(Q)
     if two_n != two_m || two_n % 2 != 0
         throw(ArgumentError("The matrix Q needs to be a 2n x 2n block matrix"))
@@ -28,12 +29,12 @@ function diff(Q::Matrix{P}) where P <: NamedPolynomial
     return dQ, dQ_even, dQ_odd
 end
 
-function H1(Q::Matrix{P}) where P <: NamedPolynomial
+function H1(Q::Matrix{P}) where P <: Polynomial
     dQ, dQ_even, dQ_odd = diff(Q)
     return H1(Q, dQ_even, dQ_odd)
 end
 
-function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where P <: NamedPolynomial
+function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where P <: Polynomial
     groeb,transformation = groebner_basis(dQ_odd)
 
     H1 = map(kernel(dQ_even)) do k
@@ -59,7 +60,7 @@ function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where 
         end
     end
 
-    N = colspan(M)
+    N = ExactLinearAlgebra.colspan(M)
     return map(1:size(N, 2)) do j
         h = zeros(P, size(Q))
         for (i,v) in enumerate(N[:, j])
@@ -73,22 +74,42 @@ function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where 
 
 end
 
+function graded_implicit_tangent_space(f, Q, vars::Gradings)
+    gr = map(q_i->quasidegree(q_i, vars), Q)
 
-function deformation(Q, var_symbols...; max_order=20)
-    dQ, dQ_even, dQ_odd = diff(Q)
-    H = H1(Q, dQ_even, dQ_odd)
+    ch = formal_coefficients(eltype(Q), :c)
+    N = generic_quasihomogeneous_map(gr, vars, ch)
 
-    if length(var_symbols) == 0
-        var_symbols = [ gensym() for _ in H ]
-    else
-        var_symbols = var_symbols[1:length(H)]
+    CC = flat_coefficients(f(Q+N) - f(Q), symbols(vars)...)
+
+    coeffs = [@linear_coefficients(cc, c[]) for cc in CC]
+    rows = length(coeffs)
+    cols = maximum(length, coeffs)
+    M = zeros(eltype(eltype(coeffs)), rows, cols)
+    for (i,c) in enumerate(coeffs)
+        for (j,cc) in enumerate(c)
+            M[i,j] = cc
+        end
     end
-    if length(var_symbols) < length(H)
-        throw(ArgumentError("Need at least $( length(H) ) variables for this deformation"))
-    end
-    _, vars = polynomial_ring(var_symbols...)
 
-    Q1 = sum(w * h for (w,h) in zip(vars, H))
+    K = ExactLinearAlgebra.kernel(M)
+
+    result = map(indices(K,2)) do j
+        N(c = i->K[i,j])
+    end
+
+    # workaround implementation detail: generic_quasihomogeneous map sometimes
+    # skips variables
+    filter!(!iszero, result)
+
+    return result
+end
+
+
+function deformation(Q, vars::Gradings; max_order=20)
+    T = graded_implicit_tangent_space(Q->Q^2,Q,vars)
+
+    Q1 = sum(prod, zip(formal_coefficients(eltype(Q),:ε), T))
     Qdef = Q1
     sumobs = zero(Q)
 
@@ -109,7 +130,7 @@ function deformation(Q, var_symbols...; max_order=20)
         Q_next, obs_next = mapreduce(
             (a,b)->(a[1]+b[1],a[2]+b[2]),
             (zero(Q), zero(Q)),
-            expansion(MC, var_symbols...)) do x
+            @expansion(MC, ε[])) do x
             exps, MC_w = x
             w = prod(v^e for (v,e) in zip(vars,exps))
             Q_w, obs_w = lift_and_obstruction(dQ_even, -MC_w)
