@@ -3,6 +3,8 @@ module MFDeformations
 using PolynomialRings
 using HomspaceMorphisms: HomspaceMorphism, kernel, span, lift_and_obstruction
 
+using ExactLinearAlgebra: colspan
+
 function diff(Q::Matrix{P}) where P <: NamedPolynomial
     two_n,two_m = size(Q)
     if two_n != two_m || two_n % 2 != 0
@@ -26,32 +28,10 @@ function diff(Q::Matrix{P}) where P <: NamedPolynomial
     return dQ, dQ_even, dQ_odd
 end
 
-function colspan(M::Matrix{R}) where R <: Number
-    M = copy(M)
-    for j in indices(M, 2)
-        for i in indices(M, 1)
-            if M[i,j] != 0
-                for k=j+1:size(M,2)
-                    if M[i,k] != 0
-                        M[:,k] = M[i,k] * M[:,j] - M[i,j] * M[:,k]
-                    end
-                end
-                break
-            end
-        end
-    end
-
-    M = M[:, [ j for j in indices(M, 2) if any(m != 0 for m in M[:,j])]]
-
-    return M
-end
-
 function H1(Q::Matrix{P}) where P <: NamedPolynomial
     dQ, dQ_even, dQ_odd = diff(Q)
     return H1(Q, dQ_even, dQ_odd)
 end
-
-
 
 function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where P <: NamedPolynomial
     groeb,transformation = groebner_basis(dQ_odd)
