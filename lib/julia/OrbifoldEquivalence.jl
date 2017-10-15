@@ -54,7 +54,9 @@ end
 enumerate_admissible_gradings(f::Function, N::Integer, W, vars...) = enumerate_admissible_gradings(f, Val{N}, W, vars...)
 
 function enumerate_admissible_gradings(f::Function, ::Type{Val{N}}, W, vars...) where N
-    total_grading, vgr = QuasiHomogeneous.find_quasihomogeneous_degrees(W, vars...)
+    gr = QuasiHomogeneous.find_quasihomogeneous_degrees(W, vars...)
+    vgr = gradings(vgr)
+    total_grading = quasidegree(W,gr)
     grading = e -> sum(e.*vgr)
 
     term_exponents = map(i->i[1], expansion(W, vars...))
@@ -93,14 +95,14 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
 
     R,allvars = polynomial_ring(Wvars..., Vvars...)
 
-    total_grading, vgr = QuasiHomogeneous.find_quasihomogeneous_degrees(W - V, Wvars..., Vvars...)
+    vgr = QuasiHomogeneous.find_quasihomogeneous_degrees(W - V, Wvars..., Vvars...)
 
     found = false
 
     enumerate_admissible_gradings(rank, W - V, Wvars..., Vvars...) do gr
         next_coeff = formal_coefficients(R,:c)
         c1 = take!(next_coeff)
-        Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, next_coeff)
+        Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, next_coeff)
 
         C = flat_coefficients(Q^2 - c1^2*(V-W)*eye(Int,size(Q)...), Wvars..., Vvars...)
 

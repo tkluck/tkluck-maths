@@ -122,7 +122,7 @@ function find_quasihomogeneous_degrees(f::Polynomial, vars::Symbol...)
 
     k = lcm(map(denominator,gradings)...)
 
-    k, tuple(map(numerator, k*gradings)...)
+    [v=>numerator(k*g) for (v,g) in zip(vars, gradings)]
 end
 
 function quasidegree(f::Polynomial, g::Gradings)
