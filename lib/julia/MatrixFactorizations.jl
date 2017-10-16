@@ -181,10 +181,11 @@ function E14_Q10_matrix_and_equations()
 
      Q = [z d1; d2 z]
 
-     eq1 = (-4+3a^4+8a^3*b+8a^2*b^2-4a^3*c-8*a^2*b*c)*(4+3a^4+8a^3*b+8a^2*b^2-4a^3*c-8a^2*b*c)
-     eq2 = a^2*(a^4-8a^2*b^2-16a*b^3-8b^4+8a^2*b*c+24a*b^2*c+16b^3*c-2a^2*c^2-8a*b*c^2-8b^2*c^2)
+     f1 = -4+3a^4+8a^3*b+8a^2*b^2-4a^3*c-8*a^2*b*c
+     f2 = 4+3a^4+8a^3*b+8a^2*b^2-4a^3*c-8a^2*b*c
+     g  = a^2*(a^4-8a^2*b^2-16a*b^3-8b^4+8a^2*b*c+24a*b^2*c+16b^3*c-2a^2*c^2-8a*b*c^2-8b^2*c^2)
 
-     Q, eq1, eq2
+     Q, f1, f2, g
 end
 
 function J3_0_Z13_possibilities(highest_free_generator_grading_source, highest_free_generator_grading_target)
