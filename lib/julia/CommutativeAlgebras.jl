@@ -142,7 +142,7 @@ function NumberField(::Type{Q}) where Q<:QuotientRing
     M = hcat((coeffs(α^n) for n=0:N)...)
 
     K = kernel(M)
-    if size(K,2) != 1
+    if size(K,2) != 1 || iszero(K[end])
         throw(AssertionError("OOPS! My naive guess for a primitive element doesn't work. Maybe this is not a number field?"))
     end
 
