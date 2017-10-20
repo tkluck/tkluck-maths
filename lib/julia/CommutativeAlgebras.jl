@@ -98,7 +98,7 @@ ring(::Type{F}) where F<:NumberField{P} where P = P
 
 function _monomial_basis end
 function _monomial_coeffs end
-function _primitive_matrix end
+function _extension_degree end
 function _primitive_coeffs end
 
 function NumberField(::Type{Q}) where Q<:QuotientRing
@@ -147,6 +147,8 @@ function NumberField(::Type{Q}) where Q<:QuotientRing
     end
 
     @eval _ideal(::Type{$F}) = _ideal($Q)
+    @eval _extension_degree(::Type{$F}) = $N
+    @eval _monomial_coeffs(::Type{$F}, f) = $coeffs(f)
 
     return F
 end
@@ -168,8 +170,8 @@ one(::Type{Q})  where Q<:QuotientRing{P} where P<:Polynomial = Q(one(P))
 +(a::Q, b::Q)  where Q<:QuotientRing = Q(a.f+b.f)
 -(a::Q, b::Q)  where Q<:QuotientRing = Q(a.f-b.f)
 *(a::Q, b::Q)  where Q<:QuotientRing = Q(a.f*b.f)
-//(a::Q, b::Q) where Q<:QuotientRing = Q(a.f//b.f)
 ==(a::Q, b::Q) where Q<:QuotientRing = a.f == b.f
+!=(a::Q, b::Q) where Q<:QuotientRing = a.f != b.f
 allvariablesymbols(::Type{Q}) where Q<:QuotientRing = allvariablesymbols(ring(Q))
 
 # -----------------------------------------------------------------------------
@@ -184,11 +186,25 @@ one(::Type{Q})  where Q<:NumberField{P} where P<:Polynomial = Q(one(P))
 +(a::Q, b::Q)  where Q<:NumberField = Q(a.f+b.f)
 -(a::Q, b::Q)  where Q<:NumberField = Q(a.f-b.f)
 *(a::Q, b::Q)  where Q<:NumberField = Q(a.f*b.f)
-//(a::Q, b::Q) where Q<:NumberField = Q(a.f//b.f)
 ==(a::Q, b::Q) where Q<:NumberField = a.f == b.f
+!=(a::Q, b::Q) where Q<:NumberField = a.f != b.f
 allvariablesymbols(::Type{Q}) where Q<:NumberField = allvariablesymbols(ring(Q))
 
 fraction_field(::Type{N}) where N<:NumberField = N
+
+# -----------------------------------------------------------------------------
+#
+# The only interesting NumberFields operation: division
+#
+# -----------------------------------------------------------------------------
+function //(a::Q, b::Q) where Q<:NumberField
+    N = _extension_degree(Q)
+    M = hcat((_monomial_coeffs(Q, b.f^n) for n=0:N)...)
+
+    K = kernel(M)
+
+    a * sum(b^(n-2) * K[n] for n=2:(N+1)) * (1//-K[1])
+end
 
 # -----------------------------------------------------------------------------
 #
