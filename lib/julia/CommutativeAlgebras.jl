@@ -18,6 +18,7 @@ import Base: promote_rule, convert
 import Base: zero, one, in, rem, issubset
 import Base: +,-,*,/,//,==,!=
 import PolynomialRings: generators, expansion
+import PolynomialRings: allvariablesymbols, fraction_field
 import PolynomialRings.Expansions: _expansion
 
 # -----------------------------------------------------------------------------
@@ -93,6 +94,7 @@ struct NumberField{P<:Polynomial, ID} <: Number #_AbstractCommutativeAlgebra{P}
     f::P
     NumberField{P, ID}(f::P) where P<:Polynomial where ID = new(rem(f, _ideal(NumberField{P, ID})))
 end
+ring(::Type{F}) where F<:NumberField{P} where P = P
 
 function _monomial_basis end
 function _monomial_coeffs end
@@ -129,9 +131,7 @@ function NumberField(::Type{Q}) where Q<:QuotientRing
 
     monomials = [tuple([i-1 for i in ind2sub(divisible,i)]...) for i in eachindex(divisible) if !divisible[i]]
     coeffs(f) = (ff = rem(f,_ideal(Q)); [coefficient(ff,m,variablesymbols(P)...) for m in monomials])
-    @show monomials
     N = length(monomials)
-    @show N
 
     global _id_counter
     ID = (_id_counter+=1)
@@ -143,7 +143,6 @@ function NumberField(::Type{Q}) where Q<:QuotientRing
 
     K = kernel(M)
     if size(K,2) != 1
-        @show K
         throw(AssertionError("OOPS! My naive guess for a primitive element doesn't work. Maybe this is not a number field?"))
     end
 
@@ -165,12 +164,13 @@ end
 zero(::Type{Q}) where Q<:QuotientRing{P} where P<:Polynomial = Q(zero(P))
 one(::Type{Q})  where Q<:QuotientRing{P} where P<:Polynomial = Q(one(P))
 +(a::QuotientRing) = a
--(a::QuotientRing) = Q(-a.f)
+-(a::Q) where Q<:QuotientRing = Q(-a.f)
 +(a::Q, b::Q)  where Q<:QuotientRing = Q(a.f+b.f)
 -(a::Q, b::Q)  where Q<:QuotientRing = Q(a.f-b.f)
 *(a::Q, b::Q)  where Q<:QuotientRing = Q(a.f*b.f)
 //(a::Q, b::Q) where Q<:QuotientRing = Q(a.f//b.f)
 ==(a::Q, b::Q) where Q<:QuotientRing = a.f == b.f
+allvariablesymbols(::Type{Q}) where Q<:QuotientRing = allvariablesymbols(ring(Q))
 
 # -----------------------------------------------------------------------------
 #
@@ -180,12 +180,15 @@ one(::Type{Q})  where Q<:QuotientRing{P} where P<:Polynomial = Q(one(P))
 zero(::Type{Q}) where Q<:NumberField{P} where P<:Polynomial = Q(zero(P))
 one(::Type{Q})  where Q<:NumberField{P} where P<:Polynomial = Q(one(P))
 +(a::NumberField) = a
--(a::NumberField) = Q(-a.f)
+-(a::Q) where Q<:NumberField = Q(-a.f)
 +(a::Q, b::Q)  where Q<:NumberField = Q(a.f+b.f)
 -(a::Q, b::Q)  where Q<:NumberField = Q(a.f-b.f)
 *(a::Q, b::Q)  where Q<:NumberField = Q(a.f*b.f)
 //(a::Q, b::Q) where Q<:NumberField = Q(a.f//b.f)
 ==(a::Q, b::Q) where Q<:NumberField = a.f == b.f
+allvariablesymbols(::Type{Q}) where Q<:NumberField = allvariablesymbols(ring(Q))
+
+fraction_field(::Type{N}) where N<:NumberField = N
 
 # -----------------------------------------------------------------------------
 #
@@ -225,6 +228,19 @@ convert(::Type{Q}, q::Q) where Q<:_Q{P} where P<:Polynomial = q
 ==(a, b::QuotientRing) = ==(promote(a,b)...)
 !=(a::QuotientRing, b) = !=(promote(a,b)...)
 !=(a, b::QuotientRing) = !=(promote(a,b)...)
+
++(a::NumberField, b::Number) = +(promote(a,b)...)
++(a::Number, b::NumberField) = +(promote(a,b)...)
+-(a::NumberField, b::Number) = -(promote(a,b)...)
+-(a::Number, b::NumberField) = -(promote(a,b)...)
+*(a::NumberField, b::Number) = *(promote(a,b)...)
+*(a::Number, b::NumberField) = *(promote(a,b)...)
+//(a::NumberField, b::Number) = //(promote(a,b)...)
+//(a::Number, b::NumberField) = //(promote(a,b)...)
+==(a::NumberField, b::Number) = ==(promote(a,b)...)
+==(a::Number, b::NumberField) = ==(promote(a,b)...)
+!=(a::NumberField, b::Number) = !=(promote(a,b)...)
+!=(a::Number, b::NumberField) = !=(promote(a,b)...)
 
 
 # -----------------------------------------------------------------------------
