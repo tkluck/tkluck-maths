@@ -15,7 +15,7 @@ AbstractCommutativeAlgebra{P<:Polynomial} = Union{P, _AbstractCommutativeAlgebra
 #
 # -----------------------------------------------------------------------------
 import Base: promote_rule, convert
-import Base: zero, one, in, rem, issubset
+import Base: zero, one, in, rem, issubset, inv
 import Base: +,-,*,/,//,==,!=
 import PolynomialRings: generators, expansion
 import PolynomialRings: allvariablesymbols, fraction_field
@@ -89,10 +89,11 @@ using PolynomialRings.Terms: monomial, coefficient
 using ExactLinearAlgebra: kernel
 TermOver{C} = Term{<:AbstractMonomial,C}
 PolynomialOver{C} = Polynomial{<:AbstractVector{<:TermOver{C}}}
-struct NumberField{P<:Polynomial, ID} <: Number #_AbstractCommutativeAlgebra{P}
+mutable struct NumberField{P<:Polynomial, ID} <: Number #_AbstractCommutativeAlgebra{P}
     #coeffs::NTuple{N, C}
     f::P
-    NumberField{P, ID}(f::P) where P<:Polynomial where ID = new(rem(f, _ideal(NumberField{P, ID})))
+    inv::Union{Null,NumberField{P,ID}}
+    NumberField{P, ID}(f::P) where P<:Polynomial where ID = new(rem(f, _ideal(NumberField{P, ID})), null)
 end
 ring(::Type{F}) where F<:NumberField{P} where P = P
 
@@ -197,14 +198,19 @@ fraction_field(::Type{N}) where N<:NumberField = N
 # The only interesting NumberFields operation: division
 #
 # -----------------------------------------------------------------------------
-function //(a::Q, b::Q) where Q<:NumberField
-    N = _extension_degree(Q)
-    M = hcat((_monomial_coeffs(Q, b.f^n) for n=0:N)...)
+function inv(a::Q) where Q<:NumberField
+    if isnull(a.inv)
+        N = _extension_degree(Q)
+        M = hcat((_monomial_coeffs(Q, a.f^n) for n=0:N)...)
 
-    K = kernel(M)
+        K = kernel(M)
 
-    a * sum(b^(n-2) * K[n] for n=2:(N+1)) * (1//-K[1])
+        a.inv = sum(a^(n-2) * K[n] for n=2:(N+1)) * (1//-K[1])
+    end
+    a.inv
 end
+
+//(a::Q, b::Q) where Q<:NumberField = a * inv(b)
 
 # -----------------------------------------------------------------------------
 #
