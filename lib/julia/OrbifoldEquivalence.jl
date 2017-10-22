@@ -17,17 +17,17 @@ end
 
 function multivariate_residue(g, f, vars...)
     R = eltype(f)
-    G,tr = groebner_basis(f)
+    G,tr = groebner_transformation(f)
 
     # TODO: compute that R/G is finite dimensional; otherwise, this computation
     # does not terminate
     M = spzeros(R, length(vars), length(f))
     for (row,v) in enumerate(vars)
         x = convert(R,v)
-        x_red, factors = red(x,G)
+        factors, x_red = divrem(x,G)
         while !iszero(x_red)
             x = x^2
-            x_red, factors = red(x,G)
+            factors, x_red = divrem(x,G)
         end
         M[row,:] = factors*tr
     end
@@ -125,10 +125,10 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
         C = converted[3:end]
 
 
-        CC = groebner_basis(C, Val{false}, max_degree=max(deg(qdim1),deg(qdim2)))
+        CC = groebner_basis(C) #, max_degree=max(deg(qdim1),deg(qdim2)))
 
-        qdim1_red,_ = red(qdim1, CC)
-        qdim2_red,_ = red(qdim2, CC)
+        qdim1_red = rem(qdim1, CC)
+        qdim2_red = rem(qdim2, CC)
 
         if !iszero(qdim1_red) && !iszero(qdim2_red)
             info("Found one!")

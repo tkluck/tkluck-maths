@@ -112,7 +112,7 @@ else
     end
 end
 
-qdim1_red,factors = red(qdim1, CC)
-qdim2_red,factors = red(qdim2, CC)
+qdim1_red = rem(qdim1, CC)
+qdim2_red = rem(qdim2, CC)
 @show qdim1_red
 @show qdim2_red

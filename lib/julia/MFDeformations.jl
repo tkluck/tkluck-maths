@@ -35,12 +35,9 @@ function H1(Q::Matrix{P}) where P <: Polynomial
 end
 
 function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where P <: Polynomial
-    groeb,transformation = groebner_basis(dQ_odd)
+    groeb = groebner_basis(dQ_odd)
 
-    H1 = map(kernel(dQ_even)) do k
-        (k_red, factors) = red(k, groeb)
-        k_red
-    end
+    H1 = map(k->rem(k, groeb), kernel(dQ_even))
 
     finite_basis_set = Set(
         (i, term[1].e)
