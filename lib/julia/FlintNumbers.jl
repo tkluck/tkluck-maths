@@ -6,7 +6,7 @@ using Nemo
 
 using PolynomialRings: exptype, leading_term
 using PolynomialRings.Terms: monomial
-using CommutativeAlgebras: _grb, _ideal
+import CommutativeAlgebras: _grb, _ideal
 using ExactLinearAlgebra: kernel
 
 _id_counter = 0
@@ -18,6 +18,7 @@ end
 
 function _nemo_number_field end
 function _named_values end
+function _primitive_element end
 
 import Base: copy
 copy(f::Nemo.fmpq) = f # this needs to be defined for power_by_squaring to work
@@ -81,6 +82,8 @@ function FlintNumberField(::Type{Q}) where Q<:QuotientRing
 
     @eval _nemo_number_field(::Type{$F}) = $NNF
     @eval _named_values(::Type{$F}) = $named_values
+    @eval _primitive_element(::Type{$F}) = $α
+    @eval _ideal(::Type{$F}) = _ideal($Q)
 
     return F
 end
@@ -135,6 +138,25 @@ function kernel(M::AbstractMatrix{F}) where F <: FlintNumber
     nullity, K = nullspace(MM)
 
     map(F, K.entries)
+end
+
+import Base:show
+
+function show(io::IO, x::FlintNumber)
+    N = Nemo.degree(_nemo_number_field(typeof(x)))
+    α = _primitive_element(typeof(x))
+    f = rem(
+            sum(0:(N-1)) do n
+                c = Nemo.coeff(x.x, n)
+                if !iszero(c)
+                    Rational{BigInt}(c) * α^n
+                else
+                    zero(Rational{BigInt})
+                end
+            end,
+            _ideal(typeof(x)),
+           )
+    print(io, f)
 end
 
 
