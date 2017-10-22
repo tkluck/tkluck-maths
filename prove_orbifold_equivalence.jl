@@ -29,9 +29,9 @@ if n_variables == 1
     c1 = take!(ch)
 
     gr=[-1 1;d-1 -1]
-    vgr=(1,1)
+    vgr=[:x=>1,:y=>1]
 
-    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, ch)
+    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, ch)
 
     qdim1 = @coefficient quantum_dimension(Q,W,[:x],[:y]) x^0*y^0
     qdim2 = @coefficient quantum_dimension(Q,V,[:y],[:x]) x^0*y^0
@@ -54,9 +54,9 @@ elseif n_variables == 2
           1  d-1 -1 -1;
           1  d-1 -1 -1]
 
-    vgr=(1,1,1,1)
+    vgr=[:x=>1,:y=>1,:u=>1,:v=>1]
 
-    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, ch)
+    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, ch)
 
     qdim1 = @coefficient quantum_dimension(Q,W,[:x,:y],[:u,:v]) x^0*y^0*u^0*v^0
     qdim2 = @coefficient quantum_dimension(Q,V,[:u,:v],[:x,:y]) x^0*y^0*u^0*v^0
@@ -75,9 +75,9 @@ elseif n_variables == 3
     c1 = take!(ch)
 
     gr = MatrixFactorizations.E14_Q10_grading()
-    vgr= (6,8,9,3,8,12)
+    vgr=[:x=>6,:y=>8,:z=>9,:u=>3,:v=>8,:w=>12]
 
-    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, R, ch)
+    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, ch)
 
     qdim1 = @coefficient quantum_dimension(Q,W,[:x,:y,:z],[:u,:v,:w]) x^0*y^0*z^0*u^0*v^0*w^0
     qdim2 = @coefficient quantum_dimension(Q,V,[:u,:v,:w],[:x,:y,:z]) x^0*y^0*z^0*u^0*v^0*w^0
