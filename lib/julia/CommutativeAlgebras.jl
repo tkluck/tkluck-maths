@@ -2,8 +2,8 @@ module CommutativeAlgebras
 
 using Nulls
 
+using PolynomialRings
 using PolynomialRings.Polynomials: Polynomial
-using PolynomialRings.Groebner: groebner_basis
 using PolynomialRings.Util: lazymap
 
 abstract type _AbstractCommutativeAlgebra{P<:Polynomial} end
@@ -37,13 +37,13 @@ Ideal(generators::Polynomial...) = Ideal(collect(generators), null, null)
 generators(I::Ideal) = I.generators
 function _grb(I::Ideal)
     if isnull(I._grb)
-        I._grb, I._trns = groebner_basis(I.generators)
+        I._grb, I._trns = groebner_transformation(I.generators)
     end
     I._grb
 end
 function _trns(I::Ideal)
     if isnull(I._grb)
-        I._grb, I._trns = groebner_basis(I.generators)
+        I._grb, I._trns = groebner_transformation(I.generators)
     end
     I._trns
 end
