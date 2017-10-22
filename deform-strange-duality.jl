@@ -7,6 +7,7 @@ W = MatrixFactorizations.E14_Q10()
 f = f1*f2
 
 F = FlintNumberField(@ring(ℚ[a,b,c])/Ideal(f1,g,c))
+@ringname F :𝔽
 QQ = map(@ring(F[x,y,z,u,v,w]), Q)
 @assert QQ^2 == W*eye(QQ)
 

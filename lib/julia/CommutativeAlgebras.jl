@@ -264,13 +264,28 @@ convert(::Type{Q}, q::Q) where Q<:_Q{P} where P<:Polynomial = q
 !=(a::NumberField, b::Number) = !=(promote(a,b)...)
 !=(a::Number, b::NumberField) = !=(promote(a,b)...)
 
+# -----------------------------------------------------------------------------
+#
+# Friendly display name macro
+#
+# -----------------------------------------------------------------------------
+macro ringname(ring, name)
+    quote
+        begin
+            import Base: show
+            $(esc(:show))(io::IO, ::Type{$(esc(ring))}) = print(io, $name)
+            $(esc(ring))
+        end
+    end
+end
+
 
 # -----------------------------------------------------------------------------
 #
 # Exports
 #
 # -----------------------------------------------------------------------------
-export Ideal, NumberField, QuotientRing, ring
+export Ideal, NumberField, QuotientRing, ring, @ringname
 
 
 end
