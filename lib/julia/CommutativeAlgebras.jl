@@ -270,7 +270,7 @@ convert(::Type{Q}, q::Q) where Q<:_Q{P} where P<:Polynomial = q
 # Exports
 #
 # -----------------------------------------------------------------------------
-export Ideal, NumberField
+export Ideal, NumberField, QuotientRing, ring
 
 
 end
