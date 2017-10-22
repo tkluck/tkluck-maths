@@ -7,6 +7,8 @@ mf:
 	JULIA_LOAD_PATH="`pwd`/lib/julia" julia -O3 ./matrices.jl
 
 push:
+	git push bitbucket
+	git push github
 	rsync -av --delete . 56861fef446d47f19213c4f066cb5ee4@ssh.cocalc.com:~/tkluck-maths
 
 time:
