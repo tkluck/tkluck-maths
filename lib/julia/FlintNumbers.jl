@@ -126,7 +126,16 @@ convert(::Type{F}, f::P) where F<:FlintNumber{P} where P<:Polynomial  = f(;_name
 
 export FlintNumberField
 
+import ExactLinearAlgebra: kernel
+function kernel(M::AbstractMatrix{F}) where F <: FlintNumber
+    MS = Nemo.MatrixSpace(_nemo_number_field(F), size(M)...)
 
+    MM = MS(map(f->f.x, M))
+
+    nullity, K = nullspace(MM)
+
+    map(F, K.entries)
+end
 
 
 end
