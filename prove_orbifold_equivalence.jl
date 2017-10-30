@@ -98,7 +98,7 @@ end
 
 if !use_FGb || !dense_monomials
     println(STDERR, "Computing")
-    CC = groebner_basis(C, Val{false}, max_degree=max(deg(qdim1),deg(qdim2)))
+    CC = groebner_basis(C, Val{false})
     println(STDERR, "Done")
 else
     using FGb

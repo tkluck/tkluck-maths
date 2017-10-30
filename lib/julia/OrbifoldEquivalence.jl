@@ -125,7 +125,7 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
         C = converted[3:end]
 
 
-        CC = groebner_basis(C) #, max_degree=max(deg(qdim1),deg(qdim2)))
+        CC = groebner_basis(C)
 
         qdim1_red = rem(qdim1, CC)
         qdim2_red = rem(qdim2, CC)
