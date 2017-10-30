@@ -1,7 +1,7 @@
 using PolynomialRings; using MFDeformations; using MatrixFactorizations; using OrbifoldEquivalence; using CommutativeAlgebras
 using FlintNumbers
 
-@ring ℚ[a,b,c]
+@ring! ℚ[a,b,c]
 Q, f1,f2, g = MatrixFactorizations.E14_Q10_matrix_and_equations()
 W = MatrixFactorizations.E14_Q10()
 f = f1*f2

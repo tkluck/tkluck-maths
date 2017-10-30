@@ -5,7 +5,7 @@ using PolynomialRings
 @testset "CommutativeAlgebras" begin
     using CommutativeAlgebras
     @testset "Construction and conversion" begin
-        R = @ring ℚ[α]
+        R = @ring! ℚ[α]
 
         S = R/Ideal(α^2 - 2)
 
@@ -17,12 +17,12 @@ using PolynomialRings
         @test Q(1+α) // Q(1+α) == 1
         @test 1 // Q(1+α) == -Q(1-α)
 
-        A = @ring Q[x]
+        A = @ring! Q[x]
         @test (α*x)^2 == 2x^2
 
         @test_throws ArgumentError @ring Q[α]
 
-        R = @ring Q[γ]
+        R = @ring! Q[γ]
         S = R/Ideal(γ^2 - α)
         Q = NumberField(S)
 
@@ -30,16 +30,16 @@ using PolynomialRings
         @test Q(γ)^3 == α*γ
         @test Q(γ)^4 == 2
 
-        B = @ring ℚ[α, x]
+        B = @ring! ℚ[α, x]
         @test (α*x)^2 != 2x^2
         @test A(α*x)^2 == A(2x^2)
 
-        R = @ring ℚ[α,β]
+        R = @ring! ℚ[α,β]
         S = R/Ideal(α^2 - 2, β^3 - 2)
         Q = NumberField(S)
         @test Q(α^2) == Q(β^3) == 2
 
-        #RR = @ring Q[β]
+        #RR = @ring! Q[β]
 
         #SS = RR/Ideal(β^3 - 2)
 
