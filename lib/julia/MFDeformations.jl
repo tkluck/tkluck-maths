@@ -29,9 +29,40 @@ function diff(Q::Matrix{P}) where P <: Polynomial
     return dQ, dQ_even, dQ_odd
 end
 
-function H1(Q::Matrix{P}) where P <: Polynomial
-    dQ, dQ_even, dQ_odd = diff(Q)
-    return H1(Q, dQ_even, dQ_odd)
+using PolynomialRings: monomialtype, variablesymbols
+
+function finite_subspace_conversion(arrays::AbstractArray{<:AbstractArray{<:Polynomial}}, vars...)
+    P = eltype(eltype(arrays))
+    MonomialType, CoeffType = PolynomialRings.Expansions._expansion_types(P, vars...)
+    finite_basis_set = Set(
+                           (i, w)
+                           for array in arrays
+                           for (i, c) in enumerate(array)
+                           for (w, p) in expansion(c, vars...)
+                          )
+    index = Dict( m => i for (i,m) in enumerate(finite_basis_set) )
+    reverse_index = Dict( i => m for (i,m) in enumerate(finite_basis_set) )
+
+    to_vector(array) = begin
+        res = zeros(CoeffType, length(finite_basis_set))
+        for (i, c) in enumerate(array)
+            for (w, p) in expansion(c, vars...)
+                res[index[i, w]] = p
+            end
+        end
+        res
+    end
+    unexpand(w) = prod(convert(P, v)^i for (v,i) in zip(vars, w))
+    to_polynomial_array(vec) = begin
+        res = zeros(P, size(arrays[1]))
+        for (j, p) in enumerate(vec)
+            i, w = reverse_index[j]
+            res[i] += p * unexpand(w)
+        end
+        return res
+    end
+
+    to_vector, to_polynomial_array
 end
 
 function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where P <: Polynomial
@@ -39,37 +70,19 @@ function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where 
 
     H1 = map(k->rem(k, groeb), kernel(dQ_even))
 
-    finite_basis_set = Set(
-        (i, term[1].e)
-        for h in H1
-        for (i, c) in enumerate(h)
-        for term in c.terms
-    )
-    index = Dict( m => i for (i,m) in enumerate(finite_basis_set) )
-    reverse_index = Dict( i => m for (i,m) in enumerate(finite_basis_set) )
+    to_vector, to_polynomial_array = finite_subspace_conversion(H1, variablesymbols(P)...)
 
-    M = zeros(basering(P), (length(finite_basis_set), length(H1)))
-    for (k,h) in enumerate(H1)
-        for (j, c) in enumerate(h)
-            for term in c.terms
-                M[index[j, term[1].e], k] = term[2]
-            end
-        end
-    end
-
+    M = hcat(map(to_vector, H1)...)
     N = ExactLinearAlgebra.colspan(M)
-    return map(1:size(N, 2)) do j
-        h = zeros(P, size(Q))
-        for (i,v) in enumerate(N[:, j])
-            if v != 0
-                j,e  = reverse_index[i]
-                h[j] += P([ Term(Monomial(e), v) ])
-            end
-        end
-        h
-    end
 
+    return [to_polynomial_array(N[:,j]) for j=1:size(N,2)]
 end
+
+function H1(Q::Matrix{P}) where P <: Polynomial
+    dQ, dQ_even, dQ_odd = diff(Q)
+    return H1(Q, dQ_even, dQ_odd)
+end
+
 
 function graded_implicit_tangent_space(f, Q, vars::Gradings)
     gr = map(q_i->quasidegree(q_i, vars), Q)
