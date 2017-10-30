@@ -108,6 +108,7 @@ copy(a::FlintNumber) = a
 fraction_field(::Type{F}) where F<:FlintNumber = F
 
 promote_rule(::Type{F}, ::Type{N}) where {F<:FlintNumber,N<:Number} = F
+promote_rule(::Type{F}, ::Type{C}) where {F<:FlintNumber,C<:PolynomialRings.Constants.Constant} = F
 convert(::Type{F}, a::Number) where F<:FlintNumber = F(_nemo_number_field(F)(a))
 convert(::Type{F}, a::Rational) where F<:FlintNumber = F(numerator(a)) // F(denominator(a))
 convert(::Type{F}, a::F) where F<:FlintNumber = a
