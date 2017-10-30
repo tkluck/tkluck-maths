@@ -85,16 +85,21 @@ end
 
 
 function graded_implicit_tangent_space(f, Q, vars::Gradings)
+    info("Computing gradings")
     gr = map(q_i->quasidegree(q_i, vars), Q)
 
+    info("Creating deformation vector")
     ch = formal_coefficients(eltype(Q), :c)
     N = generic_quasihomogeneous_map(gr, vars, ch)
 
+    info("Applying function")
     CC = flat_coefficients(f(Q+N) - f(Q), symbols(vars)...)
 
+    info("Getting linear coefficients")
     coeffs = [@linear_coefficients(cc, c[]) for cc in CC]
     rows = length(coeffs)
     cols = maximum(length, coeffs)
+    info("Computing matrix")
     M = zeros(eltype(eltype(coeffs)), rows, cols)
     for (i,c) in enumerate(coeffs)
         for (j,cc) in enumerate(c)
@@ -102,8 +107,10 @@ function graded_implicit_tangent_space(f, Q, vars::Gradings)
         end
     end
 
+    info("Computing kernel")
     K = ExactLinearAlgebra.kernel(M)
 
+    info("Substituting kernel back into deformation vector")
     result = map(indices(K,2)) do j
         N(c = i->K[i,j])
     end
@@ -111,6 +118,8 @@ function graded_implicit_tangent_space(f, Q, vars::Gradings)
     # workaround implementation detail: generic_quasihomogeneous map sometimes
     # skips variables
     filter!(!iszero, result)
+
+    info("Done")
 
     return result
 end
