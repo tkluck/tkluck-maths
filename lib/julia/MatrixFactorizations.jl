@@ -194,4 +194,139 @@ function J3_0_Z13_possibilities(highest_free_generator_grading_source, highest_f
     generic_matrix_factorizations(4,highest_free_generator_grading_source,highest_free_generator_grading_target,18,(2,6,9,3,5,9),R,:c)
 end
 
+# ----------------------------------------------
+#
+# Potentials from Strange Dualities II
+#
+# ----------------------------------------------
+
+Q10()           = (@ring! ℚ[x,y,z]; x^4   + y^3   + x*z^2)
+Q11()           = (@ring! ℚ[x,y,z]; x^3*y + y^3   + x*z^2)
+Q12(::Val{:v1}) = (@ring! ℚ[x,y,z]; x^3*z + y^3   + x*z^2)
+Q12(::Val{:v2}) = (@ring! ℚ[x,y,z]; x^5   + y^3   + x*z^2)
+Q12(x::Symbol)  = Q12(Val{x}())
+Q12()           = Q12(:v1)
+S11()           = (@ring! ℚ[x,y,z]; x^4   + y^2*z + x*z^2)
+S12()           = (@ring! ℚ[x,y,z]; x^3*y + y^2*z + x*z^2)
+U12(::Val{:v1}) = (@ring! ℚ[x,y,z]; x^4   + y^3   + z^3)
+U12(::Val{:v2}) = (@ring! ℚ[x,y,z]; x^4   + y^3   + z^2*y)
+U12(::Val{:v3}) = (@ring! ℚ[x,y,z]; x^4   + y^2*z + z^2*y)
+U12(x::Symbol)  = U12(Val{x}())
+U12()           = U12(:v1)
+Z11()           = (@ring! ℚ[x,y,z]; x^5   + x*y^3 + z^2)
+Z12()           = (@ring! ℚ[x,y,z]; y*x^4 + x*y^3 + z^2)
+Z13(::Val{:v1}) = (@ring! ℚ[x,y,z]; x^3*z + x*y^3 + z^2)
+Z13(::Val{:v2}) = (@ring! ℚ[x,y,z]; x^6   + y^3*x + z^2)
+Z13(x::Symbol)  = Z13(Val{x}())
+Z13()           = Z13(:v1)
+W12(::Val{:v1}) = (@ring! ℚ[x,y,z]; x^5   + y^2*z + z^2)
+W12(::Val{:v2}) = (@ring! ℚ[x,y,z]; x^5   + y^4   + z^2)
+W12(x::Symbol)  = W12(Val{x}())
+W12()           = W12(:v1)
+W13(::Val{:v1}) = (@ring! ℚ[x,y,z]; y*x^4 + y^2*z + z^2)
+W13(::Val{:v2}) = (@ring! ℚ[x,y,z]; x^4*y + y^4   + z^2)
+W13(x::Symbol)  = W13(Val{x}())
+W13()           = W13(:v1)
+E12()           = (@ring! ℚ[x,y,z]; x^7   + y^3   + z^2)
+E13()           = (@ring! ℚ[x,y,z]; y^3   + y*x^5 + z^2)
+E14(::Val{:v1}) = (@ring! ℚ[x,y,z]; x^4*z + y^3   + z^2)
+E14(::Val{:v2}) = (@ring! ℚ[x,y,z]; x^8   + y^3   + z^2)
+
+
+# ----------------------------------------------
+#
+# Matrix factorizations from Strange Dualities II
+#
+# ----------------------------------------------
+function StandardDuality(;substitutions...)
+    @ring! ℚ[d15,d16,d17,d25,d26,d35]
+
+    [   0    0    0    0  d15  d16  d17    0;
+        0    0    0    0  d25  d26    0  d17;
+        0    0    0    0  d35    0  d26 -d16;
+        0    0    0    0    0  d35 -d25  d15;
+      d26 -d16 -d17    0    0    0    0    0;
+     -d25  d15    0 -d17    0    0    0    0;
+     -d35    0  d15  d16    0    0    0    0;
+        0 -d35  d25  d26    0    0    0    0](;substitutions...)
+end
+
+function E14_E14()
+    @ring! ℚ[a1,a2,a3,a4,b1,b2,b3,c,x,y,z,u,v,w]
+
+    κ1 = (2b2*c - 2b1*c^2 + 2b3*c^3 - c^4 - 2a1*c^4) //2
+    κ2 = a2*c - b2*c - a4*c^2 + b1*c^2 + a3*c^3 - b3*c^3 + c^4 + κ1
+
+    Q = StandardDuality(
+        d15 = z + w + κ2*u^4 + a1*x^4 + a2*u^3*x + a3*u*x^3 + a4*u^2*x^2,
+        d16 = v^2 + v*y + y^2,
+        d17 = x^3*z + (a2*κ1//2 + b2*κ2 -c*(a2*b2 -a4*b2*c - a2*b1*c + a3*b2*c^2 + a2*b3*c^2 + a4*b1*c^2
+              -a2*a1*c^3 -a1*b2*c^3 - a4*b3*c^3 -a3*b1*c^3 + a4*a1*c^4 + a3*b3*c^4 +a1*b1*c^4 - a3*a1*c^5
+              -a1*b3*c^5 + a1^2*c^6 + a4*κ1 - a3*c*κ1 + a1*c^2*(2κ1 + b1*κ2)//2 - b3*c*κ2
+              +a1*c^2*κ2))*u^7 + (a2 + b2 - c*(a4 + b1 - a3*c - b3*c + 2a1*c^2))*u^3*w +
+              +(a2*b2 - a4*b2*c - a2*b1*c + a3*b2*c^2 + a2*b3*c^2 + a4*b1*c^2 - a2*a1*c^3 - a1*b2*c^3
+              -a4*b3*c^3-a3*b1*c^3 + a4*a1*c^4 + a3*b3*c^4 + a1*b1*c^4 - a3*a1*c^5 - a1*b3*c^5 + a1^2*c^6 + a4*κ1
+              -a3*c*κ1 + a1*c^2*κ1 + b1*κ2 - b3*c*κ2 + a1*c^2*κ2)*u^6*x + (a3 + b3 - 2a1*c)*u*w*x^2 +
+              +(a4+b1-a3*c - b3*c + 2a1*c^2)u^2*w*x + (a3*a1 + a1*b3 - a1^2*c)u*x^6 +
+              +(a4*b2 + a2*b1 + a3*κ1 + b3*κ2 - c*(a3*b2 + a2*b3 + a4*b1 - a2*a1*c - a1*b2*c
+              -a4*b3*c - a3*b1*c + a4*a1*c^2 + a3*b3*c^2 + a1*b1*c^2 - a3*a1*c^3 - a1*b3*c^3 + a1^2*c^4
+              +a1*κ1 + a1*κ2))*u^5*x^2 + (-a2+b2-c*(-a4+b1-(-a3+b3-c)*c))*u^3*z +
+              +(a3*b2 + a2*b3 + a4*b1 - a2*a1*c - a1*b2*c - a4*b3*c - a3*b1*c + a4*a1*c^2 + a3*b3*c^2
+              +a1*b1*c^2 - a3*a1*c^3 - a1*b3*c^3 + a1^2*c^4 + a1*κ1 + a1*κ2)*u^4*x^3 + a1^2*x^7 + 2a1*w*x^3 +
+
+              +(a2*a1 + a1*b2 + a4*b3 + a3*b1 -c*(a4*a1 + a3*b3 + a1*b1
+              -c*(a3*a1 + a1*b3 - a1^2*c)))*u^3*x^4 + (-a3 + b3 - c)*u*x^2*z +
+              +(a4*a1 + a3*b3 + a1*b1 - c*(a3*a1 + a1*b3 - a1^2*c))*u^2*x^5 +
+              +(-a4 + b1 - (-a3 + b3 - c)*c)*u^2*x*z,
+        d25 = -v + y,
+        d26 = -z + w + κ1*u^4 + b2*u^3*x + b1*u^2*x^2 + b3*u*x^3 + a1*x^4,
+        d35 = x + c*u,
+    )
+
+    f1, f2 = (c^4 - 2c^2 + 2)//2, (c^4 + 2c^2 + 2)//2
+
+    Q, f1, f2
+end
+
+function U12_1_U12_3()
+    @ring! ℚ[a1,a2,b1,b2,c1,c2,x,y,z,u,v,w]
+
+    Q = StandardDuality(
+        d15 = z + a1*v + a2*w,
+        d16 = -y*z + (-a1^2 + a1*b1 + a1*c1)*v^2 + (-2a1*a2 + b1*a2 + c1*a2 + a1*b2 + a1*c2)*v*w +
+              + a2*(-a2+b2+c2)*w^2 + c1*v*z + c2*w*z,
+        d17 = u^3 + u^2*x + u*x^2 + x^3,
+        d25 = -y + b1*v + b2*w,
+        d26 = -y*z + b1*c1*v^2 + (c1*b2 + b1*c2)*v*w + b2*c2*w^2 - (-a1+b1+c1)*v*y -
+              (-a2+b2+c2)*w*y,
+        d35 = x - u,
+    )
+
+    f1 = -1 + a1^2*b1 - a1*b1^2
+    f2 = 2a1*b1*a2 - b1^2*a2 + a1^2*b2 - 2a1*b1*b2
+    f3 = b1*a2^2 + 2a1*a2*b2 - 2b1*a2*b2 - a1*b2^2
+    f4 = -1 + a2^2*b2 - a2*b2^2
+
+    Q, f1, f2, f3, f4
+end
+
+function W12_W12()
+    @ring! ℚ[a1,a2,b1,b2,x,y,z,u,v,w]
+
+    Q = StandardDuality(
+        d15 = z + w + a1*u*x + a2*x^2,
+        d16 = u*w + b1*x*z + b2*w*x + ((-a1+b1)*a2 + a1*(-a2 + b1*(-2a1+b1-b2)))*x^3,
+        d17 = v^4 + v^3*y + v^2*y^2 + v*y^3 + y^4,
+        d25 = u + (-2a1+b1-b2)*x,
+        d26 = z - w + (-a1+b1)*u*x + (-a2+b1*(-2a1+b1-b2))*x^2,
+        d35 = -y + v,
+    )
+
+    f1 = a1^2 - a1*b1
+    f2 = -4-(2a1-b1+b2)^2*((b1-b2)^2 + 4a1*b2)
+
+    Q, f1, f2
+end
+
+
 end
