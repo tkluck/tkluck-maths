@@ -1,5 +1,7 @@
 module MatrixFactorizations
 
+using QuasiHomogeneous
+
 using PolynomialRings
 
 export StrangeDuality, S1, T2, Dk_1, E6_1, E7_3, one_certain_unit_mf, E14_Q10
@@ -250,6 +252,50 @@ function StandardDuality(;substitutions...)
      -d25  d15    0 -d17    0    0    0    0;
      -d35    0  d15  d16    0    0    0    0;
         0 -d35  d25  d26    0    0    0    0](;substitutions...)
+end
+
+function find_standard_duality(W, vars...)
+
+    gradings = QuasiHomogeneous.find_quasihomogeneous_degrees(W, vars...)
+    D = quasidegree(W, gradings)
+
+    count = 0
+
+    for deg_d17 = 1:(D-1)
+        deg_d35 = D - deg_d17
+        for deg_d15 = deg_d17:(D-1)
+            deg_d26 = D - deg_d15
+            for deg_d16 = deg_d15:(D-1)
+                deg_d25 = D - deg_d16
+
+                coeffs = Channel() do ch
+                    for c in formal_coefficients(typeof(W), :c)
+                        push!(ch, c)
+                    end
+                end
+                d17 = generic_quasihomogeneous_polynomial(deg_d17, gradings, coeffs)
+                d35 = generic_quasihomogeneous_polynomial(deg_d35, gradings, coeffs)
+                d15 = generic_quasihomogeneous_polynomial(deg_d15, gradings, coeffs)
+                d26 = generic_quasihomogeneous_polynomial(deg_d26, gradings, coeffs)
+                d16 = generic_quasihomogeneous_polynomial(deg_d16, gradings, coeffs)
+                d25 = generic_quasihomogeneous_polynomial(deg_d25, gradings, coeffs)
+
+                equation = -d17*d35 + d15*d26 - d16*d25 - W
+                eqns = coefficients(equation, vars...)
+
+                if !(1 in eqns)
+                    a = maximum(max_variable_index, eqns)
+                    dense_eqns = to_dense_monomials(eqns)
+                    @show dense_eqns
+                    if !(rem(one(eltype(dense_eqns)), groebner_basis(dense_eqns)) == 0)
+                        count += 1
+                    end
+                end
+            end
+        end
+    end
+
+    info("Found $count possibilities")
 end
 
 function E14_E14()
