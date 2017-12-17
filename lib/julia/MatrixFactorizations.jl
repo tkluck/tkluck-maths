@@ -299,38 +299,44 @@ function find_standard_duality(W, vars...)
 end
 
 function E14_E14()
-    @ring! ℚ[a1,a2,a3,a4,b1,b2,b3,c,x,y,z,u,v,w]
+    @ring! ℚ[a2,a3,a4,a5,
+             b22,b23,b24,
+             c1,
+             x,y,z,u,v,w]
 
-    κ1 = (2b2*c - 2b1*c^2 + 2b3*c^3 - c^4 - 2a1*c^4) //2
-    κ2 = a2*c - b2*c - a4*c^2 + b1*c^2 + a3*c^3 - b3*c^3 + c^4 + κ1
+    # ARC: conditions on the parameters -----------------------
+    b21=-1//2*(-2*b22*c1+2*b24*c1^2-2*b23*c1^3+c1^4+2*a5*c1^4)
+    a1=b21+a2*c1-b22*c1-a4*c1^2+b24*c1^2+a3*c1^3-b23*c1^3+c1^4
+    d11=a1*a5+a5*b21+a3*b22+a2*b23+a4*b24-a2*a5*c1-a5*b22*c1-a4*b23*c1-a3*b24*c1+a4*a5*c1^2+a3*b23*c1^2+a5*b24*c1^2-a3*a5*c1^3-a5*b23*c1^3+a5^2*c1^4
+    b25=a5
+    d14=a5*b25
+    d155=a5*b23+a3*b25-c1*d14
+    d13=a3*b23+a5*b24+a4*b25-c1*d155
+    d12=a5*b22+a4*b23+a3*b24+a2*b25-c1*d13
+    d10=a5+b25
+    d8=a3*b21+a4*b22+a1*b23+a2*b24-c1*d11
+    d7=a3+b23-c1*d10
+    d5=a4*b21+a2*b22+a1*b24-a3*b21*c1-a4*b22*c1-a1*b23*c1-a2*b24*c1+a1*a5*c1^2+a5*b21*c1^2+a3*b22*c1^2+a2*b23*c1^2+a4*b24*c1^2-a2*a5*c1^3-a5*b22*c1^3-a4*b23*c1^3-a3*b24*c1^3+a4*a5*c1^4+a3*b23*c1^4+a5*b24*c1^4-a3*a5*c1^5-a5*b23*c1^5+a5^2*c1^6
+    d2=a2*b21+a1*b22-c1*d5
+    d4=a4+b24-a3*c1-b23*c1+2*a5*c1^2
+    d1=a2+b22-c1*d4
+    d9=-a3+b23-c1
+    d6=-a4+b24-c1*d9
+    d3=-a2+b22-c1*d6
+    # ----------------------------------------------------------
 
+    # ARC: In this case, we used directly the structure of the ansatz for a matrix factorization, which makes us have less parameters to take care of
     Q = StandardDuality(
-        d15 = z + w + κ2*u^4 + a1*x^4 + a2*u^3*x + a3*u*x^3 + a4*u^2*x^2,
-        d16 = v^2 + v*y + y^2,
-        d17 = x^3*z + (a2*κ1//2 + b2*κ2 -c*(a2*b2 -a4*b2*c - a2*b1*c + a3*b2*c^2 + a2*b3*c^2 + a4*b1*c^2
-              -a2*a1*c^3 -a1*b2*c^3 - a4*b3*c^3 -a3*b1*c^3 + a4*a1*c^4 + a3*b3*c^4 +a1*b1*c^4 - a3*a1*c^5
-              -a1*b3*c^5 + a1^2*c^6 + a4*κ1 - a3*c*κ1 + a1*c^2*(2κ1 + b1*κ2)//2 - b3*c*κ2
-              +a1*c^2*κ2))*u^7 + (a2 + b2 - c*(a4 + b1 - a3*c - b3*c + 2a1*c^2))*u^3*w +
-              +(a2*b2 - a4*b2*c - a2*b1*c + a3*b2*c^2 + a2*b3*c^2 + a4*b1*c^2 - a2*a1*c^3 - a1*b2*c^3
-              -a4*b3*c^3-a3*b1*c^3 + a4*a1*c^4 + a3*b3*c^4 + a1*b1*c^4 - a3*a1*c^5 - a1*b3*c^5 + a1^2*c^6 + a4*κ1
-              -a3*c*κ1 + a1*c^2*κ1 + b1*κ2 - b3*c*κ2 + a1*c^2*κ2)*u^6*x + (a3 + b3 - 2a1*c)*u*w*x^2 +
-              +(a4+b1-a3*c - b3*c + 2a1*c^2)u^2*w*x + (a3*a1 + a1*b3 - a1^2*c)u*x^6 +
-              +(a4*b2 + a2*b1 + a3*κ1 + b3*κ2 - c*(a3*b2 + a2*b3 + a4*b1 - a2*a1*c - a1*b2*c
-              -a4*b3*c - a3*b1*c + a4*a1*c^2 + a3*b3*c^2 + a1*b1*c^2 - a3*a1*c^3 - a1*b3*c^3 + a1^2*c^4
-              +a1*κ1 + a1*κ2))*u^5*x^2 + (-a2+b2-c*(-a4+b1-(-a3+b3-c)*c))*u^3*z +
-              +(a3*b2 + a2*b3 + a4*b1 - a2*a1*c - a1*b2*c - a4*b3*c - a3*b1*c + a4*a1*c^2 + a3*b3*c^2
-              +a1*b1*c^2 - a3*a1*c^3 - a1*b3*c^3 + a1^2*c^4 + a1*κ1 + a1*κ2)*u^4*x^3 + a1^2*x^7 + 2a1*w*x^3 +
-
-              +(a2*a1 + a1*b2 + a4*b3 + a3*b1 -c*(a4*a1 + a3*b3 + a1*b1
-              -c*(a3*a1 + a1*b3 - a1^2*c)))*u^3*x^4 + (-a3 + b3 - c)*u*x^2*z +
-              +(a4*a1 + a3*b3 + a1*b1 - c*(a3*a1 + a1*b3 - a1^2*c))*u^2*x^5 +
-              +(-a4 + b1 - (-a3 + b3 - c)*c)*u^2*x*z,
-        d25 = -v + y,
-        d26 = -z + w + κ1*u^4 + b2*u^3*x + b1*u^2*x^2 + b3*u*x^3 + a1*x^4,
-        d35 = x + c*u,
+        d15=z+w+a1*u^4+a2*x*u^3+a3*x^3*u+a4*x^2*u^2+a5*x^4,
+        d16=y^2+y*v+v^2,
+        d17=x^3*z+d1*u^3*w+d2*u^7+d3*z*u^3+d4*x*u^2*w+d5*x*u^6+d6*x*z*u^2+d7*x^2*u*w+d8*x^2*u^5+d9*x^2*z*u+d10*x^3*w+d11*x^3*u^4+d12*x^4*u^3+d13*x^5*u^2+d14*x^7+d155*x^6*u,
+        d25=y-v,
+        d26=-z+w+b21*u^4+b22*x*u^3+b23*x^3*u+b24*x^2*u^2+b25*x^4,
+        d35=x+c1*u,
     )
+    # ----------------------------------------------------------
 
-    f1, f2 = (c^4 - 2c^2 + 2)//2, (c^4 + 2c^2 + 2)//2
+    f1, f2 = (c1^4 - 2c1^2 + 2)//2, (c1^4 + 2c1^2 + 2)//2
 
     Q, f1, f2
 end
