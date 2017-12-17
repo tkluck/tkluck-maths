@@ -364,19 +364,26 @@ function U12_1_U12_3()
 end
 
 function W12_W12()
-    @ring! ℚ[a1,a2,b1,b2,x,y,z,u,v,w]
+    @ring! ℚ[a,b,c,x,y,z,u,v,w]
 
-    Q = StandardDuality(
-        d15 = z + w + a1*u*x + a2*x^2,
-        d16 = u*w + b1*x*z + b2*w*x + ((-a1+b1)*a2 + a1*(-a2 + b1*(-2a1+b1-b2)))*x^3,
-        d17 = v^4 + v^3*y + v^2*y^2 + v*y^3 + y^4,
-        d25 = u + (-2a1+b1-b2)*x,
-        d26 = z - w + (-a1+b1)*u*x + (-a2+b1*(-2a1+b1-b2))*x^2,
-        d35 = -y + v,
-    )
+    f1 = a^2-a*b
+    f2 = -a*b^3+4*a^3*c+4*a*b^2*c-5*a*b*c^2+2*a*c^3+a^2*(b^2-6*b*c+5*c^2)+1//4*(4+b^4-4*b^3*c+6*b^2*c^2-4*b*c^3+c^4)
 
-    f1 = a1^2 - a1*b1
-    f2 = -4-(2a1-b1+b2)^2*((b1-b2)^2 + 4a1*b2)
+    Q1 = [w+a*u*x+1//2*(-2*a*b+b^2+2*a*c-2*b*c+c^2)*x^2+z u*w+c*w*x+(1//2*(-a+b)*(-2*a*b+b^2+2*a*c-2*b*c+c^2)+a*(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)))*x^3+b*x*z v^4+v^3*y+v^2*y^2+v*y^3+y^4 0
+          u+(-2*a+b-c)*x -w+(-a+b)*u*x+(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2))*x^2+z 0 v^4+v^3*y+v^2*y^2+v*y^3+y^4
+          v-y 0 -w+(-a+b)*u*x+(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2))*x^2+z -u*w-c*w*x+(-(1//2)*(-a+b)*(-2*a*b+b^2+2*a*c-2*b*c+c^2)-a*(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)))*x^3-b*x*z
+          0 v-y -u+(2*a-b+c)*x w+a*u*x+1//2*(-2*a*b+b^2+2*a*c-2*b*c+c^2)*x^2+z
+         ]
+
+    Q2 = [w+(a-b)*u*x+(-b*(-2*a+b-c)+1//2*(-2*a*b+b^2+2*a*c-2*b*c+c^2))*x^2-z u*w+c*w*x+(1//2*(-a+b)*(-2*a*b+b^2+2*a*c-2*b*c+c^2)+a*(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)))*x^3+b*x*z v^4+v^3*y+v^2*y^2+v*y^3+y^4 0
+          u+(-2*a+b-c)*x -w-a*u*x+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)*x^2-z 0 v^4+v^3*y+v^2*y^2+v*y^3+y^4
+          v-y 0 -w-a*u*x+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)*x^2-z -u*w-c*w*x+(-(1//2)*(-a+b)*(-2*a*b+b^2+2*a*c-2*b*c+c^2)-a*(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)))*x^3-b*x*z
+          0 v-y -u+(2*a-b+c)*x w+(a-b)*u*x+(-b*(-2*a+b-c)+1//2*(-2*a*b+b^2+2*a*c-2*b*c+c^2))*x^2-z
+         ]
+
+    z = zeros(Q1)
+
+    Q = [z Q1; Q2 z]
 
     Q, f1, f2
 end
