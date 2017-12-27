@@ -17,7 +17,7 @@ function supertrace(Q::Matrix)
 end
 
 function multivariate_residue(g, f, vars...)
-    R = eltype(f)
+    R = base_extend( eltype(f) )
     G,tr = groebner_transformation(f)
 
     # TODO: compute that R/G is finite dimensional; otherwise, this computation
@@ -48,7 +48,7 @@ function quantum_dimension(Q::Matrix, W, left_vars, right_vars)
     g = supertrace(prod( diff(Q, v) for v in left_vars) * prod( diff(Q, v) for v in right_vars) )
     f = [diff(W,v) for v in left_vars]
 
-    return multivariate_residue(g, f, left_vars...)
+    return constant_coefficient(multivariate_residue(g, f, left_vars...), right_vars...)
 end
 
 
