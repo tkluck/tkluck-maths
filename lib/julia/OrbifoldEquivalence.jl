@@ -4,6 +4,7 @@ using Base.Iterators
 using Nulls
 
 using PolynomialRings
+using PolynomialRings: allvariablesymbols, basering
 using QuasiHomogeneous
 
 function supertrace(Q::Matrix)
@@ -153,7 +154,35 @@ function is_orbifold_equivalent(W, Wvars, V, Vvars, max_rank=Inf)
     return null
 end
 
+function variables_appearing(f)
+    vars = allvariablesymbols(typeof(f))
+    appears = [false for _ in vars]
+    for (p,c) in expansion(f, vars...)
+        if !iszero(c)
+            appears .|= (!iszero).(p)
+        end
+    end
+    return Symbol[v for v in vars[appears]]
+end
+
+function is_orbifold_equivalence(Q, W, V)
+    W_vars = variables_appearing(W)
+    V_vars = variables_appearing(V)
+    lqdim = quantum_dimension(Q, W, W_vars, V_vars)
+    rqdim = quantum_dimension(Q, V, V_vars, W_vars)
+    I = flat_coefficients(Q^2 - (W-V)*one(Q), W_vars..., V_vars...)
+    G = groebner_basis(I)
+    lqdim = rem(lqdim, G)
+    rqdim = rem(rqdim, G)
+    if rem(1, G) == 0 || lqdim == 0 || rqdim == 0
+        return false, lqdim, rqdim, G
+    else
+        return true, lqdim, rqdim, G
+    end
+end
+
 export supertrace, multivariate_residue, quantum_dimension, equivalence_exists, is_orbifold_equivalent
+export is_orbifold_equivalence
 
 
 end
