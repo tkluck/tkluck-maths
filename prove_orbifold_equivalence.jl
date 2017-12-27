@@ -3,11 +3,11 @@ using PolynomialRings: terms
 using OrbifoldEquivalence
 using QuasiHomogeneous
 
+using FGb
+
 using StatProfilerHTML
 
-const n_variables = 2
-const dense_monomials = true
-const use_FGb = false          # only with dense monomials!
+const n_variables = 1
 
 # within the if block, we define:
 # c1 - an unused formal_coefficient(R), to be used for homogenization
@@ -25,16 +25,16 @@ if n_variables == 1
     W = x^d
     V = y^d
 
-    ch = formal_coefficients(R,:c)
-    c1 = take!(ch)
+    @ring! ℤ[c[]]
+    c1 = c()
 
     gr=[-1 1;d-1 -1]
     vgr=[:x=>1,:y=>1]
 
-    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, ch)
+    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, c)
 
-    qdim1 = @coefficient quantum_dimension(Q,W,[:x],[:y]) x^0*y^0
-    qdim2 = @coefficient quantum_dimension(Q,V,[:y],[:x]) x^0*y^0
+    qdim1 = quantum_dimension(Q,W,[:x],[:y])
+    qdim2 = quantum_dimension(Q,V,[:y],[:x])
 
 # -----------------------------
 # two variable case: reflexivity
@@ -46,8 +46,8 @@ elseif n_variables == 2
     W = x^d - y^d
     V = u^d - v^d
 
-    ch = formal_coefficients(R,:c)
-    c1 = take!(ch)
+    @ring! ℤ[c[]]
+    c1 = c()
 
     gr = [-1 -1 d-1 d-1;
           -1 -1 1    1;
@@ -56,10 +56,10 @@ elseif n_variables == 2
 
     vgr=[:x=>1,:y=>1,:u=>1,:v=>1]
 
-    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, ch)
+    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, c)
 
-    qdim1 = @coefficient quantum_dimension(Q,W,[:x,:y],[:u,:v]) x^0*y^0*u^0*v^0
-    qdim2 = @coefficient quantum_dimension(Q,V,[:u,:v],[:x,:y]) x^0*y^0*u^0*v^0
+    qdim1 = quantum_dimension(Q,W,[:x,:y],[:u,:v])
+    qdim2 = quantum_dimension(Q,V,[:u,:v],[:x,:y])
 
 # -----------------------------
 # three variable case: E14 ~ Q10
@@ -71,16 +71,16 @@ elseif n_variables == 3
     W = x^4 + y^3 + x*z^2
     V = u^4*w + v^3 + w^2
 
-    ch = formal_coefficients(R,:c)
-    c1 = take!(ch)
+    @ring! ℤ[c[]]
+    c1 = c()
 
     gr = MatrixFactorizations.E14_Q10_grading()
     vgr=[:x=>6,:y=>8,:z=>9,:u=>3,:v=>8,:w=>12]
 
-    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, ch)
+    Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, c)
 
-    qdim1 = @coefficient quantum_dimension(Q,W,[:x,:y,:z],[:u,:v,:w]) x^0*y^0*z^0*u^0*v^0*w^0
-    qdim2 = @coefficient quantum_dimension(Q,V,[:u,:v,:w],[:x,:y,:z]) x^0*y^0*z^0*u^0*v^0*w^0
+    qdim1 = quantum_dimension(Q,W,[:x,:y,:z],[:u,:v,:w])
+    qdim2 = quantum_dimension(Q,V,[:u,:v,:w],[:x,:y,:z])
 
 end
 
@@ -89,28 +89,8 @@ end
 # -----------------------------
 C = [coefficient(t) for entry in (Q^2 - c1^2*(V-W)*eye(Int,size(Q)...)) for t in terms(entry)]
 
-if dense_monomials
-    yada = to_dense_monomials([qdim1; qdim2; C])
-    qdim1 = yada[1]
-    qdim2 = yada[2]
-    C = yada[3:end]
-end
 
-if !use_FGb || !dense_monomials
-    println(STDERR, "Computing")
-    CC = groebner_basis(C, Val{false})
-    println(STDERR, "Done")
-else
-    using FGb
-    CC = FGb_with(eltype(C)) do FGbPolynomial
-        println(STDERR, "Converting to FGb representation...")
-        G = map(FGbPolynomial, C)
-        println(STDERR, "Computing groebner basis...")
-        @time gr = groebner(G)
-        println(STDERR, "Done")
-        map(g -> convert(eltype(C),g), gr)
-    end
-end
+CC = groebner_basis(C)
 
 qdim1_red = rem(qdim1, CC)
 qdim2_red = rem(qdim2, CC)
