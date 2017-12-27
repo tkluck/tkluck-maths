@@ -6,9 +6,48 @@ using PolynomialRings
 
 export StrangeDuality, S1, T2, Dk_1, E6_1, E7_3, one_certain_unit_mf, E14_Q10
 
-StrangeDuality() = begin
-    A = @ring! ℤ[x,y,z]
+xs = [:x,:y,:z]
+us = [:u,:v,:w]
+macro with_xu(num_vars, expr1, expr2=nothing)
+    if expr2 === nothing
+        expr = expr1
+        basering = BigInt
+        inject_basering = nothing
+    else
+        expr = expr2
+        basering = :( @ring($expr1) )
+        inject_basering = :( @ring!($expr1) )
+    end
+    if num_vars == 1
+        esc(quote
+            $inject_basering
+            _,(x,) = polynomial_ring(xs[1:1]..., basering=$basering)
+            _,(u,) = polynomial_ring(us[1:1]..., basering=$basering)
+            R = typeof( x*u )
+            $expr
+        end)
+    elseif num_vars == 2
+        esc(quote
+            $inject_basering
+            _,(x,y) = polynomial_ring(xs[1:2]..., basering=$basering)
+            _,(u,v) = polynomial_ring(us[1:2]..., basering=$basering)
+            R = typeof( x*u )
+            $expr
+        end)
+    elseif num_vars == 3
+        esc(quote
+            $inject_basering
+            _,(x,y,z) = polynomial_ring(xs[1:3]..., basering=$basering)
+            _,(u,v,w) = polynomial_ring(us[1:3]..., basering=$basering)
+            R = typeof( x*u )
+            $expr
+        end)
+    else
+        throw(ValueError("@with_xu supports up to three variables"))
+    end
+end
 
+StrangeDuality(xs=xs) = @with_xu 3 begin
     d1 = [z   y^2 x^3 0 ; y -x*z 0 x^3 ; x 0 -x*z -y^2 ; 0 x -y z  ]
     d0 = [x*z y^2 x^3 0 ; y -z   0 x^3 ; x 0 -z   -y^2 ; 0 x -y x*z]
     zz = zero(d1)
@@ -16,9 +55,7 @@ StrangeDuality() = begin
     [ zz d1; d0 zz ]
 end
 
-S1() = begin
-    A = @ring! ℤ[x,y]
-
+S1(xs=xs) = @with_xu 2 begin
     q1=[x x*y; -y -x^3]
     q0=[x^3 x*y; -y -x]
     zz = zero(q1)
@@ -26,9 +63,7 @@ S1() = begin
     [ zz q1; q0 zz ]
 end
 
-T2() = begin
-    A = @ring! ℤ[x,y]
-
+T2(xs=xs) = @with_xu 2 begin
     q1 = [x^2 y ; -y -x^2]
     q0 = [x^3 x*y; -x*y -x^3]
     zz = zero(q1)
@@ -38,9 +73,7 @@ end
 
 # The following are the factorizations from [22]
 
-Dk_1(k::Integer, l::Integer) = begin
-    A = @ring! ℤ[x,y,z]
-
+Dk_1(k::Integer, l::Integer, xs=xs) = @with_xu 3 begin
     if k == 1
         q1 = [z x^2 + y^(j-2); y -z]
         q0 = q1
@@ -68,9 +101,7 @@ Dk_1(k::Integer, l::Integer) = begin
     [ zz q1; q0 zz ]
 end
 
-E6_1() = begin
-    A = @ring! ℤ[x,y,z]
-
+E6_1(xs=xs) = @with_xu 3 begin
     q1 = [-z 0 x^2 y^3; 0 -z y -x; x y^3 z 0; y -x^2 0 z]
     q0 = q1
     zz = zero(q1)
@@ -78,9 +109,7 @@ E6_1() = begin
     [ zz q1; q0 zz ]
 end
 
-E7_3() = begin
-    A = @ring! ℚ[x,y,z]
-
+E7_3(xs=xs) = @with_xu 3 begin
     q1 = [-z 0 x*y -y^2 0 0 x^2 0;
           0 -z 0 y^2 0 0 0 x;
           y^2 y^2 z 0 0 -x 0 0 ;
@@ -95,9 +124,7 @@ E7_3() = begin
     [ zz q1; q0 zz ]
 end
 
-one_certain_unit_mf() = begin
-    A = @ring! ℚ[x,y,z,u,v,w]
-
+one_certain_unit_mf(xs=xs,us=us) = @with_xu 3 begin
     q1 = [ x^3 + x^2*u + x*u^2 + u^3 + z^2        0     y^2 + y*v + v^2      z*u + u*w;
            0      x^3 + x^2*u + x*u^2 + u^3 + z^2 -z + w                           y - v;
         -y + v          z*u + u*w                           x - u                        0;
@@ -113,13 +140,11 @@ one_certain_unit_mf() = begin
     [ zz q1; q0 zz ]
 end
 
-E14_Q10() = begin
-    A = @ring! ℚ[x,y,z,u,v,w]
+E14_Q10(xs=xs,us=us) = @with_xu 3 begin
     return (u^4*w + v^3 + w^2) - (x^4 + y^3 + x*z^2)
 end
 
-J3_0_Z13() = begin
-    A = @ring! ℚ[x,y,z,u,v,w]
+J3_0_Z13(xs=xs,us=us) = @with_xu 3 begin
     return x^6*y + y^3 + z^2 - u^6 - u*v^3 - w^2
 end
 
@@ -202,38 +227,40 @@ end
 #
 # ----------------------------------------------
 
-Q10()           = (@ring! ℤ[x,y,z]; x^4   + y^3   + x*z^2)
-Q11()           = (@ring! ℤ[x,y,z]; x^3*y + y^3   + x*z^2)
-Q12(::Val{:v1}) = (@ring! ℤ[x,y,z]; x^3*z + y^3   + x*z^2)
-Q12(::Val{:v2}) = (@ring! ℤ[x,y,z]; x^5   + y^3   + x*z^2)
-Q12(x::Symbol)  = Q12(Val{x}())
-Q12()           = Q12(:v1)
-S11()           = (@ring! ℤ[x,y,z]; x^4   + y^2*z + x*z^2)
-S12()           = (@ring! ℤ[x,y,z]; x^3*y + y^2*z + x*z^2)
-U12(::Val{:v1}) = (@ring! ℤ[x,y,z]; x^4   + y^3   + z^3)
-U12(::Val{:v2}) = (@ring! ℤ[x,y,z]; x^4   + y^3   + z^2*y)
-U12(::Val{:v3}) = (@ring! ℤ[x,y,z]; x^4   + y^2*z + z^2*y)
-U12(x::Symbol)  = U12(Val{x}())
-U12()           = U12(:v1)
-Z11()           = (@ring! ℤ[x,y,z]; x^5   + x*y^3 + z^2)
-Z12()           = (@ring! ℤ[x,y,z]; y*x^4 + x*y^3 + z^2)
-Z13(::Val{:v1}) = (@ring! ℤ[x,y,z]; x^3*z + x*y^3 + z^2)
-Z13(::Val{:v2}) = (@ring! ℤ[x,y,z]; x^6   + y^3*x + z^2)
-Z13(x::Symbol)  = Z13(Val{x}())
-Z13()           = Z13(:v1)
-W12(::Val{:v1}) = (@ring! ℤ[x,y,z]; x^5   + y^2*z + z^2)
-W12(::Val{:v2}) = (@ring! ℤ[x,y,z]; x^5   + y^4   + z^2)
-W12(x::Symbol)  = W12(Val{x}())
-W12()           = W12(:v1)
-W13(::Val{:v1}) = (@ring! ℤ[x,y,z]; y*x^4 + y^2*z + z^2)
-W13(::Val{:v2}) = (@ring! ℤ[x,y,z]; x^4*y + y^4   + z^2)
-W13(x::Symbol)  = W13(Val{x}())
-W13()           = W13(:v1)
-E12()           = (@ring! ℤ[x,y,z]; x^7   + y^3   + z^2)
-E13()           = (@ring! ℤ[x,y,z]; y^3   + y*x^5 + z^2)
-E14(::Val{:v1}) = (@ring! ℤ[x,y,z]; x^4*z + y^3   + z^2)
-E14(::Val{:v2}) = (@ring! ℤ[x,y,z]; x^8   + y^3   + z^2)
-E14(x::Symbol)  = E14(Val{x}())
+Q10(xs=xs)      = @with_xu 3 x^4   + y^3   + x*z^2
+Q11(xs=xs)      = @with_xu 3 x^3*y + y^3   + x*z^2
+Q12(::Val{:v1},xs=xs) = @with_xu 3 x^3*z + y^3   + x*z^2
+Q12(::Val{:v2},xs=xs) = @with_xu 3 x^5   + y^3   + x*z^2
+Q12(x::Symbol,xs=xs)  = Q12(Val{x}(),xs)
+Q12(xs=xs)           = Q12(:v1,xs)
+S11(xs=xs)           = @with_xu 3 x^4   + y^2*z + x*z^2
+S12(xs=xs)           = @with_xu 3 x^3*y + y^2*z + x*z^2
+U12(::Val{:v1},xs=xs) = @with_xu 3 x^4   + y^3   + z^3
+U12(::Val{:v2},xs=xs) = @with_xu 3 x^4   + y^3   + z^2*y
+U12(::Val{:v3},xs=xs) = @with_xu 3 x^4   + y^2*z + z^2*y
+U12(x::Symbol,xs=xs)  = U12(Val{x}(),xs)
+U12(xs=xs)           = U12(:v1,xs)
+Z11(xs=xs)           = @with_xu 3 x^5   + x*y^3 + z^2
+Z12(xs=xs)           = @with_xu 3 y*x^4 + x*y^3 + z^2
+Z13(::Val{:v1},xs=xs) = @with_xu 3 x^3*z + x*y^3 + z^2
+Z13(::Val{:v2},xs=xs) = @with_xu 3 x^6   + y^3*x + z^2
+Z13(x::Symbol,xs=xs)  = Z13(Val{x}(),xs)
+Z13(xs=xs)           = Z13(:v1,xs)
+W12(::Val{:v1},xs=xs) = @with_xu 3 x^5   + y^2*z + z^2
+W12(::Val{:v2},xs=xs) = @with_xu 3 x^5   + y^4   + z^2
+W12(x::Symbol,xs=xs)  = W12(Val{x}(),xs)
+W12(xs=xs)           = W12(:v1,xs)
+W13(::Val{:v1},xs=xs) = @with_xu 3 y*x^4 + y^2*z + z^2
+W13(::Val{:v2},xs=xs) = @with_xu 3 x^4*y + y^4   + z^2
+W13(x::Symbol,xs=xs)  = W13(Val{x}(),xs)
+W13(xs=xs)           = W13(:v1,xs)
+E12(xs=xs)           = @with_xu 3 x^7   + y^3   + z^2
+E13(xs=xs)           = @with_xu 3 y^3   + y*x^5 + z^2
+E14(::Val{:v1},xs=xs) = @with_xu 3 x^4*z + y^3   + z^2
+E14(::Val{:v2},xs=xs) = @with_xu 3 x^8   + y^3   + z^2
+E14(x::Symbol,xs=xs)  = E14(Val{x}(),xs)
+
+export Q10, Q11, Q12, S11, S12, U12, Z11, Z12, Z13, W12, W13, E12, E12, E14
 
 
 # ----------------------------------------------
