@@ -224,43 +224,56 @@ end
 # ----------------------------------------------
 #
 # Potentials from Strange Dualities II
+# and from Recknagel/Weinreb
 #
 # ----------------------------------------------
 
+A5(xs=xs)   = @with_xu 2 x^6 + y^2
+A2A2(xs=xs) = @with_xu 2 x^3 + y^3
+E6(xs=xs) = @with_xu 2 y^4+x^3
+E7(xs=xs) = @with_xu 2 x^3 + x*y^3
+E8(xs=xs) = @with_xu 2 x^3 + y^5
+D7(xs=xs) = @with_xu 2 x^6+x*y^2
+D16(xs=xs) = @with_xu 2 x^15+x*y^2
+D10(xs=xs) = @with_xu 2 x^9 + x*y^2
 Q10(xs=xs)      = @with_xu 3 x^4   + y^3   + x*z^2
-Q11(xs=xs)      = @with_xu 3 x^3*y + y^3   + x*z^2
+Q11(xs=xs)      = @with_xu 3 y*z^3 + y^3   + x^2*z
 Q12(::Val{:v1},xs=xs) = @with_xu 3 x^3*z + y^3   + x*z^2
 Q12(::Val{:v2},xs=xs) = @with_xu 3 x^5   + y^3   + x*z^2
 Q12(x::Symbol,xs=xs)  = Q12(Val{x}(),xs)
 Q12(xs=xs)           = Q12(:v1,xs)
-S11(xs=xs)           = @with_xu 3 x^4   + y^2*z + x*z^2
+S11(xs=xs)           = @with_xu 3 x^2*z + y*z^2 + y^4
 S12(xs=xs)           = @with_xu 3 x^3*y + y^2*z + x*z^2
 U12(::Val{:v1},xs=xs) = @with_xu 3 x^4   + y^3   + z^3
 U12(::Val{:v2},xs=xs) = @with_xu 3 x^4   + y^3   + z^2*y
 U12(::Val{:v3},xs=xs) = @with_xu 3 x^4   + y^2*z + z^2*y
 U12(x::Symbol,xs=xs)  = U12(Val{x}(),xs)
 U12(xs=xs)           = U12(:v1,xs)
-Z11(xs=xs)           = @with_xu 3 x^5   + x*y^3 + z^2
-Z12(xs=xs)           = @with_xu 3 y*x^4 + x*y^3 + z^2
-Z13(::Val{:v1},xs=xs) = @with_xu 3 x^3*z + x*y^3 + z^2
-Z13(::Val{:v2},xs=xs) = @with_xu 3 x^6   + y^3*x + z^2
+Z11(xs=xs)           = @with_xu 2 x^3*y + y^5
+Z12(xs=xs)           = @with_xu 3 y*x^4  + x*y^3 + z^2
+Z13(::Val{:v1},xs=xs) = @with_xu 3 x^6   + y^3*x + z^2
+Z13(::Val{:v2},xs=xs) = @with_xu 3 x^3*z + x*y^3 + z^2
 Z13(x::Symbol,xs=xs)  = Z13(Val{x}(),xs)
 Z13(xs=xs)           = Z13(:v1,xs)
 W12(::Val{:v1},xs=xs) = @with_xu 3 x^5   + y^2*z + z^2
 W12(::Val{:v2},xs=xs) = @with_xu 3 x^5   + y^4   + z^2
 W12(x::Symbol,xs=xs)  = W12(Val{x}(),xs)
 W12(xs=xs)           = W12(:v1,xs)
-W13(::Val{:v1},xs=xs) = @with_xu 3 y*x^4 + y^2*z + z^2
-W13(::Val{:v2},xs=xs) = @with_xu 3 x^4*y + y^4   + z^2
+W13(::Val{:v1},xs=xs) = @with_xu 3 -x^2  + y^4   + y*z^4
+W13(::Val{:v2},xs=xs) = @with_xu 3 y*x^4 + y^2*z + z^2
+W13(::Val{:v3},xs=xs) = @with_xu 3 x^4*y + y^4   + z^2
 W13(x::Symbol,xs=xs)  = W13(Val{x}(),xs)
 W13(xs=xs)           = W13(:v1,xs)
 E12(xs=xs)           = @with_xu 3 x^7   + y^3   + z^2
-E13(xs=xs)           = @with_xu 3 y^3   + y*x^5 + z^2
+E13(::Val{:v1},xs=xs) = @with_xu 2 y^3 + y*x^5
+E13(::Val{:v2},xs=xs) = @with_xu 3 y^3 + y*x^5 + z^2
+E13(x::Symbol,xs=xs)  = E13(Val{x}(),xs)
+E13(xs=xs)            = E13(:v1,xs)
 E14(::Val{:v1},xs=xs) = @with_xu 3 x^4*z + y^3   + z^2
 E14(::Val{:v2},xs=xs) = @with_xu 3 x^8   + y^3   + z^2
 E14(x::Symbol,xs=xs)  = E14(Val{x}(),xs)
 
-export Q10, Q11, Q12, S11, S12, U12, Z11, Z12, Z13, W12, W13, E12, E12, E14
+export Q10, Q11, Q12, S11, S12, U12, Z12, Z13, W12, W13, E12, E12, E14
 
 
 # ----------------------------------------------
@@ -415,8 +428,6 @@ function W12_W12()
     Q, f1, f2
 end
 
-A5(xs=xs) = @with_xu 2 x^6 + y^2
-A2A2(xs=xs) = @with_xu 2 x^3 + y^3
 A5_A2A2(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
     # compatibility with notation below
     A = a
@@ -438,8 +449,6 @@ A5_A2A2(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
     return Q
 end
 
-E6(xs=xs) = @with_xu 2 y^4+x^3
-D7(xs=xs) = @with_xu 2 x^6+x*y^2
 E6_D7(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
     A = a
     lookup = Dict(1=>x,2=>y,3=>u,4=>v)
@@ -470,8 +479,6 @@ E6_D7(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
     return Q
 end
 
-E7(xs=xs) = @with_xu 2 x^3 + x*y^3
-D10(xs=xs) = @with_xu 2 x^9 + x*y^2
 E7_D10(xs=xs,us=us) = @with_xu 2 ℚ[a[]] begin
     # compatibility with notation below
     A = a
@@ -493,8 +500,6 @@ E7_D10(xs=xs,us=us) = @with_xu 2 ℚ[a[]] begin
     return Q
 end
 
-E8(xs=xs) = @with_xu 2 x^3 + y^5
-D16(xs=xs) = @with_xu 2 x^15+x*y^2
 E8_D16(xs=xs,us=us) = @with_xu 2 ℚ[a[]] begin
     # compatibility with notation below
     A = a
@@ -526,8 +531,6 @@ E8_D16(xs=xs,us=us) = @with_xu 2 ℚ[a[]] begin
     return Q
 end
 
-S11(xs=xs) = @with_xu 3 x^2*z + y*z^2 + y^4
-W13(xs=xs) = @with_xu 3 -x^2 + y^4 + y*z^4
 S11_W13(xs=xs,us=us) = @with_xu 3 ℤ[a[]] begin
     # compatibility with notation below
     A = a
@@ -567,8 +570,6 @@ S11_W13(xs=xs,us=us) = @with_xu 3 ℤ[a[]] begin
     return Q
 end
 
-E13(xs=xs) = @with_xu 2 y^3 + y*x^5
-Z11(xs=xs) = @with_xu 2 x^3*y + y^5
 E13_Z11(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
     # compatibility with notation below
     A = a
@@ -600,8 +601,6 @@ E13_Z11(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
     return Q
 end
 
-Z13(xs=xs) = @with_xu 3 x^6 + x*y^3 + z^2
-Q11(xs=xs) = @with_xu 3 y*z^3 + y^3 + x^2*z
 Z13_Q11(xs=xs,us=us) = @with_xu 3 ℚ[a[]] begin
     # compatibility with notation below
     A = a
