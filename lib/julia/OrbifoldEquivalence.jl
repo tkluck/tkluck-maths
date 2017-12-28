@@ -5,6 +5,7 @@ using Nulls
 
 using PolynomialRings
 using PolynomialRings: allvariablesymbols, basering
+using PolynomialRings.NamedPolynomials: unused_variable
 using QuasiHomogeneous
 
 function supertrace(Q::Matrix)
@@ -171,10 +172,9 @@ function is_orbifold_equivalence(Q, W, V)
     lqdim = quantum_dimension(Q, W, W_vars, V_vars)
     rqdim = quantum_dimension(Q, V, V_vars, W_vars)
     I = flat_coefficients(Q^2 - (W-V)*one(Q), W_vars..., V_vars...)
-    G = groebner_basis(I)
-    lqdim = rem(lqdim, G)
-    rqdim = rem(rqdim, G)
-    if rem(1, G) == 0 || lqdim == 0 || rqdim == 0
+    a0 = unused_variable(I)
+    G = groebner_basis([I; 1 - a0*lqdim*rqdim])
+    if rem(1, G) == 0
         return false, lqdim, rqdim, G
     else
         return true, lqdim, rqdim, G
