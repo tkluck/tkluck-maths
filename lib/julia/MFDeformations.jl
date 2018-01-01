@@ -66,7 +66,7 @@ function finite_subspace_conversion(arrays::AbstractArray{<:AbstractArray{<:Poly
 end
 
 function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where P <: Polynomial
-    groeb = groebner_basis(dQ_odd)
+    groeb = gröbner_basis(dQ_odd)
 
     H1 = map(k->rem(k, groeb), kernel(dQ_even))
 

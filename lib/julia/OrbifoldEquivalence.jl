@@ -19,7 +19,7 @@ end
 
 function multivariate_residue(g, f, vars...)
     R = base_extend( eltype(f) )
-    G,tr = groebner_transformation(f)
+    G,tr = gröbner_transformation(f)
 
     # TODO: compute that R/G is finite dimensional; otherwise, this computation
     # does not terminate
@@ -173,7 +173,7 @@ function is_orbifold_equivalence(Q, W, V)
     rqdim = quantum_dimension(Q, V, V_vars, W_vars)
     I = flat_coefficients(Q^2 - (W-V)*one(Q), W_vars..., V_vars...)
     a0 = unused_variable(I)
-    G = groebner_basis([I; 1 - a0*lqdim*rqdim])
+    G = gröbner_basis([I; 1 - a0*lqdim*rqdim])
     if rem(1, G) == 0
         return false, lqdim, rqdim, G
     else

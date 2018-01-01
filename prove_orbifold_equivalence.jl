@@ -90,7 +90,7 @@ end
 C = [coefficient(t) for entry in (Q^2 - c1^2*(V-W)*eye(Int,size(Q)...)) for t in terms(entry)]
 
 
-CC = groebner_basis(C)
+CC = gröbner_basis(C)
 
 qdim1_red = rem(qdim1, CC)
 qdim2_red = rem(qdim2, CC)

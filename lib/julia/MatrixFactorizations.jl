@@ -323,11 +323,11 @@ function find_standard_duality(W, vars...)
                 equation = -d17*d35 + d15*d26 - d16*d25 - W
                 eqns = coefficients(equation, vars...)
 
-                if !(1 in eqns)
+                if !(1 in eqns || -1 in eqns)
                     a = maximum(max_variable_index, eqns)
                     dense_eqns = to_dense_monomials(eqns)
                     @show dense_eqns
-                    if !(rem(one(eltype(dense_eqns)), groebner_basis(dense_eqns)) == 0)
+                    if !(rem(one(eltype(dense_eqns)), gröbner_basis(dense_eqns)) == 0)
                         count += 1
                     end
                 end
