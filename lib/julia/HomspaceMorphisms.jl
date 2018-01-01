@@ -93,7 +93,7 @@ function kernel(F::ModuleMorphism{P}) where P <: Polynomial
 
 end
 
-function groebner_basis(F::HomspaceMorphism)
+function groebner_transformation(F::HomspaceMorphism)
     if isnull(F._image_basis)
         basis, transformation = groebner_transformation(span(F))
         F._image_basis = basis
@@ -101,6 +101,8 @@ function groebner_basis(F::HomspaceMorphism)
     end
     return (get(F._image_basis), get(F._image_basis_transformation))
 end
+
+groebner_basis(F::HomspaceMorphism) = groebner_transformation(F)[1]
 
 function kernel(F::HomspaceMorphism{P}) where P <: Polynomial
     basis, transformation = groebner_transformation(F)
