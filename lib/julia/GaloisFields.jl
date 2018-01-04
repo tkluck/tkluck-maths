@@ -10,7 +10,7 @@ struct Reduced end
 
 struct GaloisField{I,p} <: Number
     n::I
-    GaloisField{I,p}(n::I) where {I,p} = new(rem(n,p))
+    GaloisField{I,p}(n::I) where {I,p} = new(mod(n,p))
     GaloisField{I,p}(::Reduced, n::I) where {I,p} = new(n)
 end
 
@@ -39,7 +39,7 @@ show(io::IO, ::Type{GF{I,p}}) where {I,p} = write(io, "𝔽$p")
 
 
 promote_rule(F::Type{<:GF}, ::Type{<:Integer}) = F
-convert(F::Type{GF{I,p}}, i::Integer) where {I,p} = F(Reduced(), rem(i,p))
+convert(F::Type{GF{I,p}}, i::Integer) where {I,p} = F(Reduced(), mod(i,p))
 
 convert(::Type{F}, n::F) where F<:GF = n
 (::Type{F})(n::F) where F<:GF = n
