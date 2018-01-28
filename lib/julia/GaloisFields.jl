@@ -24,8 +24,8 @@ char(x) = char(typeof(x))
 char(::Type{GF{I,p}}) where {I,p} = p
 
 
-zero(x::Type{<:GF}) = x(0)
-one(x::Type{<:GF}) = x(1)
+zero(x::Type{<:GF{I}}) where I = x(zero(I))
+one(x::Type{<:GF{I}}) where I = x(one(I))
 +(a::F,b::F) where F<:GF = F(a.n+b.n)
 -(a::F,b::F) where F<:GF = F(a.n-b.n)
 +(a::F) where F<:GF = a
@@ -39,7 +39,7 @@ show(io::IO, ::Type{GF{I,p}}) where {I,p} = write(io, "𝔽$p")
 
 
 promote_rule(F::Type{<:GF}, ::Type{<:Integer}) = F
-convert(F::Type{GF{I,p}}, i::Integer) where {I,p} = F(Reduced(), mod(i,p))
+convert(F::Type{GF{I,p}}, i::Integer) where {I,p} = F(Reduced(), I(mod(i,p)))
 
 convert(::Type{F}, n::F) where F<:GF = n
 (::Type{F})(n::F) where F<:GF = n
