@@ -35,8 +35,10 @@ inv(a::F) where F<:GF = F(Reduced(), invmod(a.n,char(F)))
 //(a::F,b::F) where F<:GF = a*inv(b)
 
 show(io::IO, a::GF) = show(io, a.n)
-show(io::IO, ::Type{GF{I,p}}) where {I,p} = write(io, "𝔽$p")
-
+function show(io::IO, ::Type{GF{I,p}}) where {I,p}
+    number = replace("$p", r"[0-9]", x->['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'][parse(Int,x) + 1])
+    write(io, "𝔽$number")
+end
 
 promote_rule(F::Type{<:GF}, ::Type{<:Integer}) = F
 convert(F::Type{GF{I,p}}, i::Integer) where {I,p} = F(Reduced(), I(mod(i,p)))
