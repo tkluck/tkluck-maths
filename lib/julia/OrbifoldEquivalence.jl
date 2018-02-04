@@ -8,6 +8,62 @@ using PolynomialRings: allvariablesymbols, basering
 using PolynomialRings.NamedPolynomials: unused_variable
 using QuasiHomogeneous
 
+function unit_matrix_factorization(f, left_vars, right_vars)
+    R = typeof(f)
+    function ∂(f, n)
+        for i in 1:n-1
+            f = f(; left_vars[i] => R(right_vars[i]))
+        end
+        factors = div(R(f - f(; left_vars[n] => R(right_vars[n]))), [R(left_vars[n]) - R(right_vars[n])])
+        factors[1]
+    end
+
+    # x represents, through its bit-representation, a basis element of the exterior
+    # algebra. To be precise, x represents the element theta_i_1 \wedge ... \wedge theta_i_n
+    # where i_1 ... i_n are the bits set in x. To be able to easily decompose this
+    # exterior algebra in an even and odd part, we map the indexes in such a way that the
+    # first entries represent the even part, and the last entries represent the odd part.
+    # We use two steps:
+    #  - the 'gray code' (see wikipedia) ensures that subsequent elements differ by
+    #    one bit. This means they have *alternating* signs.
+    #  - reflecting the bit order ensures that alternating signs map to an even and an
+    #    odd block.
+    N = length(left_vars)
+    reflected(x) = reduce(+,0,2^(N-1-ix) for ix=0:N-1 if x&(1<<ix) != 0)
+    gray_code(x) = xor(x, x>>1)
+    permutation = map(n->gray_code(reflected(n))+1, 0:2^N-1)
+    inv_perm = invperm(permutation)
+    to_index(x) = inv_perm[x+1]
+
+    function wedge_product_matrix(T, i)
+        result = zeros(T, 2^N,2^N)
+        for j in 0:2^N-1
+            j&(1<<(i-1)) != 0 && continue
+
+            k = j | (1 << (i-1))
+            sign = (-1)^count_ones(j & (1<<i - 1))
+            result[to_index(j), to_index(k)] = T(sign)
+        end
+        return result
+    end
+
+    function lift_matrix(T, i)
+        result = zeros(T, 2^N, 2^N)
+        for j in 0:2^N-1
+            j&(1<<(i-1)) == 0 && continue
+
+            k = j & ~(1<<(i-1))
+            sign = (-1)^count_ones(j & (1<<i - 1))
+            result[to_index(j), to_index(k)] = T(sign)
+        end
+        return result
+    end
+
+    delta_plus = sum( ∂(f, i) * wedge_product_matrix(R, i) for i=1:N )
+    delta_minus = sum( (R(left_vars[i]) - R(right_vars[i])) * lift_matrix(R, i) for i = 1:N )
+    return delta_plus + delta_minus
+end
+
 function supertrace(Q::Matrix)
     n,m = size(Q)
     n == m && n%2 ==0 || throw(ArgumentError("Cannot compute supertrace of $n x $m matrix"))
@@ -183,6 +239,7 @@ end
 
 export supertrace, multivariate_residue, quantum_dimension, equivalence_exists, is_orbifold_equivalent
 export is_orbifold_equivalence
+export unit_matrix_factorization
 
 
 end
