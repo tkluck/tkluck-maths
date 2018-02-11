@@ -1,715 +1,167 @@
 module MatrixFactorizations
 
-using QuasiHomogeneous
-
 using PolynomialRings
+using PolynomialRings: basering, variablesymbols
+using PolynomialRings.QuotientRings: representation_matrix
 
-export StrangeDuality, S1, T2, Dk_1, E6_1, E7_3, one_certain_unit_mf, E14_Q10
+include("MatrixFactorizations/Library.jl")
 
-xs = [:x,:y,:z]
-us = [:u,:v,:w]
-macro with_xu(num_vars, expr1, expr2=nothing)
-    if expr2 === nothing
-        expr = expr1
-        basering = BigInt
-        inject_basering = nothing
-    else
-        expr = expr2
-        basering = :( @ring($expr1) )
-        inject_basering = :( @ring!($expr1) )
-    end
-    if num_vars == 1
-        esc(quote
-            $inject_basering
-            _,(x,) = polynomial_ring(xs[1:1]..., basering=$basering)
-            _,(u,) = polynomial_ring(us[1:1]..., basering=$basering)
-            R = typeof( x*u )
-            $expr
-        end)
-    elseif num_vars == 2
-        esc(quote
-            $inject_basering
-            _,(x,y) = polynomial_ring(xs[1:2]..., basering=$basering)
-            _,(u,v) = polynomial_ring(us[1:2]..., basering=$basering)
-            R = typeof( x*u )
-            $expr
-        end)
-    elseif num_vars == 3
-        esc(quote
-            $inject_basering
-            _,(x,y,z) = polynomial_ring(xs[1:3]..., basering=$basering)
-            _,(u,v,w) = polynomial_ring(us[1:3]..., basering=$basering)
-            R = typeof( x*u )
-            $expr
-        end)
-    else
-        throw(ValueError("@with_xu supports up to three variables"))
-    end
-end
+flatten_blocks(X) = vcat([hcat(X[i,:]...) for i=1:size(X,1)]...)
 
-StrangeDuality(xs=xs) = @with_xu 3 begin
-    d1 = [z   y^2 x^3 0 ; y -x*z 0 x^3 ; x 0 -x*z -y^2 ; 0 x -y z  ]
-    d0 = [x*z y^2 x^3 0 ; y -z   0 x^3 ; x 0 -z   -y^2 ; 0 x -y x*z]
-    zz = zero(d1)
+from_alternating_grades(M::Matrix) = [
+    M[1:2:end,1:2:end] M[1:2:end,2:2:end];
+    M[2:2:end,1:2:end] M[2:2:end,2:2:end];
+]
+const to_alternating_grades = from_alternating_grades
 
-    [ zz d1; d0 zz ]
-end
+"""
+    A⨷B
 
-S1(xs=xs) = @with_xu 2 begin
-    q1=[x x*y; -y -x^3]
-    q0=[x^3 x*y; -y -x]
-    zz = zero(q1)
+Graded tensor product of ℤ/2 graded block matrices. The result consists
+of even/odd blocks just like the input and the operation is associative.
 
-    [ zz q1; q0 zz ]
-end
+_Graded_ means that we introduce Koszul signs. Writing ``A = a^i_j e_i e^j`` and
+``B = b^k_ℓ f_k f^ℓ`` for some (co)basis vectors, we represent the tensor
+product as
 
-T2(xs=xs) = @with_xu 2 begin
-    q1 = [x^2 y ; -y -x^2]
-    q0 = [x^3 x*y; -x*y -x^3]
-    zz = zero(q1)
+``A⨷B = (-1)^{|j|(|k|+|ℓ|)} p^i_j q^k_ℓ e_i f_k f^ℓ e^j``
 
-    [ zz q1; q0 zz ]
-end
+where the sign comes from commuting ``e^j`` with ``f_k f^ℓ``. This ensures that,
+upon matrix multiplication between two such tensor products, the contractions
+between ``e^j`` and ``e_j``, and between ``f^ℓ`` and ``f_ℓ``, are already
+adjacent and do not introduce more signs.
 
-# The following are the factorizations from [22]
+Mapping the multi-indices ``(i,k)`` to rows and ``(ℓ,j)`` to columns requires
+some care to ensure that we end up with even/odd blocks. A comment in the code
+explains how this is done. We first interlace the rows/columns to get alternating
+grades in rows/columns (`to_alternating_grades` and `from_alternating_grades`).
+Then we need only to reverse some row/column orders. Finally, we de-interlace
+to get even/odd blocks. (I wonder if there is a way to avoid making the detour
+through the alternating signs representation, but it seems hard to maintain
+associativity.)
+"""
+function ⨷(A,B)
+    n,m = size(A)
+    k,l = size(B)
+    n%2 == m%2 == k%2 == l%2 == 0 || throw(ValueError("Need ℤ/2 graded matrices, even rank and corank"))
 
-Dk_1(k::Integer, l::Integer, xs=xs) = @with_xu 3 begin
-    if k == 1
-        q1 = [z x^2 + y^(j-2); y -z]
-        q0 = q1
-    elseif k % 2 == 0 && 2 <= k && k <= l - 2
-        q1 = [-z 0 x*y y^(k>>1);
-              0 -z y^(k-1-(k>>1)) -x;
-              x y^(k>>1) z 0;
-              y^(k-1-(k>>1)) -x*y 0 z
-            ]
-        q0 = q1
-    elseif k % 2 == 1 && 3 <= k && k <= l - 2
-        q1 = [-z y^(k>>1) x*y 0;
-              y^(l - (k+1)>>1) z 0 -x;
-              x 0 z y^((k-3)>>1);
-              0 -x*y y^(l-(k>>1)) -z
-            ]
-        q0 = q1
-    elseif k <= l
-        throw(ArgumentError("not implemented yet; need to test complex numbers"))
-    else
-        throw(ArgumentError("k needs to be at most l"))
-    end
-    zz = zero(q1)
+    A,B = to_alternating_grades.((A,B))
 
-    [ zz q1; q0 zz ]
-end
+    res = [a.*B for a in A]
 
-E6_1(xs=xs) = @with_xu 3 begin
-    q1 = [-z 0 x^2 y^3; 0 -z y -x; x y^3 z 0; y -x^2 0 z]
-    q0 = q1
-    zz = zero(q1)
-
-    [ zz q1; q0 zz ]
-end
-
-E7_3(xs=xs) = @with_xu 3 begin
-    q1 = [-z 0 x*y -y^2 0 0 x^2 0;
-          0 -z 0 y^2 0 0 0 x;
-          y^2 y^2 z 0 0 -x 0 0 ;
-          0 x*y 0 z -x^2 0 0 0 ;
-          0 0 0 -x -z 0 0 y ;
-          0 0 -x^2 0 0 -z x*y^2 y^2 ;
-          x 0 0 0 -y^2 y z 0 ;       # NOTE: typo in paper [22]: it lists -y^2 y^2 z as the nonzero coefficients
-          0 x^2 0 0 x*y^2 0 0 z ]
-    q0 = q1
-    zz = zero(q1)
-
-    [ zz q1; q0 zz ]
-end
-
-one_certain_unit_mf(xs=xs,us=us) = @with_xu 3 begin
-    q1 = [ x^3 + x^2*u + x*u^2 + u^3 + z^2        0     y^2 + y*v + v^2      z*u + u*w;
-           0      x^3 + x^2*u + x*u^2 + u^3 + z^2 -z + w                           y - v;
-        -y + v          z*u + u*w                           x - u                        0;
-      -z + w         -y^2 - y*v - v^2                          0                     x - u]
-
-    q0 = [  x - u         0     -y^2 - y*v - v^2     -z*u - u*w;
-          0          x - u        z - w                -y + v ;
-       y - v      -z*u - u*w  x^3 + x^2*u + x*u^2 + u^3 + z^2   0 ;
-       z - w        y^2 + y*v + v^2   0   x^3 + x^2*u + x*u^2 + u^3 + z^2 ]
-
-    zz = zero(q1)
-
-    [ zz q1; q0 zz ]
-end
-
-E14_Q10(xs=xs,us=us) = @with_xu 3 begin
-    return (u^4*w + v^3 + w^2) - (x^4 + y^3 + x*z^2)
-end
-
-J3_0_Z13(xs=xs,us=us) = @with_xu 3 begin
-    return x^6*y + y^3 + z^2 - u^6 - u*v^3 - w^2
-end
-
-
-unit_matrix_factorization(f, left_vars, right_vars) = begin
-
-
-
-end
-
-using PolynomialRings
-using QuasiHomogeneous: generic_matrix_factorizations
-function E14_Q10_possibilities(highest_free_generator_grading_source=7, highest_free_generator_grading_target=7)
-    R, vars = polynomial_ring(:x,:y,:z,:u,:v,:w)
-
-    generic_matrix_factorizations(4,highest_free_generator_grading_source, highest_free_generator_grading_target,24,(6,8,9,3,8,12),R,:c)
-end
-
-function E14_Q10_grading()
-    d = [
-         12  15  16  19;
-          9  12  13  16;
-          8  11  12  15;
-          5   8   9  12
-    ]
-    z = fill(-1, 4,4)
-    [z d;d z]
-end
-
-function E14_Q10_matrix_and_equations()
-    R = @ring! ℚ[a,b,c]
-    S = @ring! R[x,y,z,u,v,w]
-
-    κ1 = a^3//2 + a^2*b + a*b^2 - a^2*c//2 - a*b*c
-    κ2 = 1 + 3a^4//4 + 3a^3*b + 4a^2*b^2 + 2a*b^3  - a^3*c - 3*a^2*b*c - 2a*b^2*c
-
-    x15 = κ1*u^3+a*u*x+z
-    x16 = v^2+v*y+y^2
-    x17 = κ2*u^4//2+w-a*(-a-2b)*u^2*x//2+x^2+b*u*z
-    x25 = y-v
-    x26 = (-b-b^2*κ1+(c-a)*κ2//2)*u^5+(-a-2b+c)*u*w+c*u*x^2+b*(-a-b+c)*u^2*z-x*z
-    x35 = (-1+(-a-2b+c)*κ1+κ2//2)*u^4-w+a*(-a-2b+2c)*u^2*x//2+x^2+(-a-b+c)*u*z
-
-    x73 = x62 = x48 = x15
-    x74 = x16; x38 = x52 = -x16
-    x28 = x17; x53 = x64 = -x17
-    x83 = x25; x61 = x47 = -x25
-    x51 = x84 = x37 = x26
-    x46 = x35; x82 = x71 = -x35
-
-    d1 = [x15 x16 x17   0;
-          x25 x26   0 x28;
-          x35   0 x37 x38;
-            0 x46 x47 x48]
-    d2 = [x51 x52 x53   0;
-          x61 x62   0 x64;
-          x71   0 x73 x74;
-            0 x82 x83 x84]
-
-     z = zero(d1)
-
-     Q = [z d1; d2 z]
-
-     f1 = -4+3a^4+8a^3*b+8a^2*b^2-4a^3*c-8*a^2*b*c
-     f2 = 4+3a^4+8a^3*b+8a^2*b^2-4a^3*c-8a^2*b*c
-     g  = a^2*(a^4-8a^2*b^2-16a*b^3-8b^4+8a^2*b*c+24a*b^2*c+16b^3*c-2a^2*c^2-8a*b*c^2-8b^2*c^2)
-
-     Q, f1, f2, g
-end
-
-function J3_0_Z13_possibilities(highest_free_generator_grading_source, highest_free_generator_grading_target)
-    R, vars = polynomial_ring(:x,:y,:z,:u,:v,:w)
-
-    generic_matrix_factorizations(4,highest_free_generator_grading_source,highest_free_generator_grading_target,18,(2,6,9,3,5,9),R,:c)
-end
-
-# ----------------------------------------------
-#
-# Potentials from Strange Dualities II
-# and from Recknagel/Weinreb
-#
-# ----------------------------------------------
-
-A5(xs=xs)   = @with_xu 2 x^6 + y^2
-A2A2(xs=xs) = @with_xu 2 x^3 + y^3
-E6(xs=xs) = @with_xu 2 y^4+x^3
-E7(xs=xs) = @with_xu 2 x^3 + x*y^3
-E8(xs=xs) = @with_xu 2 x^3 + y^5
-D7(xs=xs) = @with_xu 2 x^6+x*y^2
-D16(xs=xs) = @with_xu 2 x^15+x*y^2
-D10(xs=xs) = @with_xu 2 x^9 + x*y^2
-Q10(xs=xs)      = @with_xu 3 x^4   + y^3   + x*z^2
-Q11(xs=xs)      = @with_xu 3 y*z^3 + y^3   + x^2*z
-Q12(::Val{:v1},xs=xs) = @with_xu 3 x^3*z + y^3   + x*z^2
-Q12(::Val{:v2},xs=xs) = @with_xu 3 x^5   + y^3   + x*z^2
-Q12(x::Symbol,xs=xs)  = Q12(Val{x}(),xs)
-Q12(xs=xs)           = Q12(:v1,xs)
-S11(xs=xs)           = @with_xu 3 x^2*z + y*z^2 + y^4
-S12(xs=xs)           = @with_xu 3 x^3*y + y^2*z + x*z^2
-U12(::Val{:v1},xs=xs) = @with_xu 3 x^4   + y^3   + z^3
-U12(::Val{:v2},xs=xs) = @with_xu 3 x^4   + y^3   + z^2*y
-U12(::Val{:v3},xs=xs) = @with_xu 3 x^4   + y^2*z + z^2*y
-U12(x::Symbol,xs=xs)  = U12(Val{x}(),xs)
-U12(xs=xs)           = U12(:v1,xs)
-Z11(xs=xs)           = @with_xu 2 x^3*y + y^5
-Z12(xs=xs)           = @with_xu 3 y*x^4  + x*y^3 + z^2
-Z13(::Val{:v1},xs=xs) = @with_xu 3 x^6   + y^3*x + z^2
-Z13(::Val{:v2},xs=xs) = @with_xu 3 x^3*z + x*y^3 + z^2
-Z13(x::Symbol,xs=xs)  = Z13(Val{x}(),xs)
-Z13(xs=xs)           = Z13(:v1,xs)
-W12(::Val{:v1},xs=xs) = @with_xu 3 x^5   + y^2*z + z^2
-W12(::Val{:v2},xs=xs) = @with_xu 3 x^5   + y^4   + z^2
-W12(x::Symbol,xs=xs)  = W12(Val{x}(),xs)
-W12(xs=xs)           = W12(:v1,xs)
-W13(::Val{:v1},xs=xs) = @with_xu 3 -x^2  + y^4   + y*z^4
-W13(::Val{:v2},xs=xs) = @with_xu 3 y*x^4 + y^2*z + z^2
-W13(::Val{:v3},xs=xs) = @with_xu 3 x^4*y + y^4   + z^2
-W13(x::Symbol,xs=xs)  = W13(Val{x}(),xs)
-W13(xs=xs)           = W13(:v1,xs)
-E12(xs=xs)           = @with_xu 3 x^7   + y^3   + z^2
-E13(::Val{:v1},xs=xs) = @with_xu 2 y^3 + y*x^5
-E13(::Val{:v2},xs=xs) = @with_xu 3 y^3 + y*x^5 + z^2
-E13(x::Symbol,xs=xs)  = E13(Val{x}(),xs)
-E13(xs=xs)            = E13(:v1,xs)
-E14(::Val{:v1},xs=xs) = @with_xu 3 x^4*z + y^3   + z^2
-E14(::Val{:v2},xs=xs) = @with_xu 3 x^8   + y^3   + z^2
-E14(x::Symbol,xs=xs)  = E14(Val{x}(),xs)
-
-export Q10, Q11, Q12, S11, S12, U12, Z12, Z13, W12, W13, E12, E12, E14
-
-
-# ----------------------------------------------
-#
-# Matrix factorizations from Strange Dualities II
-#
-# ----------------------------------------------
-function StandardDuality(;substitutions...)
-    @ring! ℚ[d15,d16,d17,d25,d26,d35]
-
-    [   0    0    0    0  d15  d16  d17    0;
-        0    0    0    0  d25  d26    0  d17;
-        0    0    0    0  d35    0  d26 -d16;
-        0    0    0    0    0  d35 -d25  d15;
-      d26 -d16 -d17    0    0    0    0    0;
-     -d25  d15    0 -d17    0    0    0    0;
-     -d35    0  d15  d16    0    0    0    0;
-        0 -d35  d25  d26    0    0    0    0](;substitutions...)
-end
-
-function find_standard_duality(W, vars...)
-
-    gradings = QuasiHomogeneous.find_quasihomogeneous_degrees(W, vars...)
-    D = quasidegree(W, gradings)
-
-    count = 0
-
-    for deg_d17 = 1:(D-1)
-        deg_d35 = D - deg_d17
-        for deg_d15 = deg_d17:(D-1)
-            deg_d26 = D - deg_d15
-            for deg_d16 = deg_d15:(D-1)
-                deg_d25 = D - deg_d16
-
-                coeffs = Channel() do ch
-                    for c in formal_coefficients(typeof(W), :c)
-                        push!(ch, c)
-                    end
-                end
-                d17 = generic_quasihomogeneous_polynomial(deg_d17, gradings, coeffs)
-                d35 = generic_quasihomogeneous_polynomial(deg_d35, gradings, coeffs)
-                d15 = generic_quasihomogeneous_polynomial(deg_d15, gradings, coeffs)
-                d26 = generic_quasihomogeneous_polynomial(deg_d26, gradings, coeffs)
-                d16 = generic_quasihomogeneous_polynomial(deg_d16, gradings, coeffs)
-                d25 = generic_quasihomogeneous_polynomial(deg_d25, gradings, coeffs)
-
-                equation = -d17*d35 + d15*d26 - d16*d25 - W
-                eqns = coefficients(equation, vars...)
-
-                if !(1 in eqns || -1 in eqns)
-                    a = maximum(max_variable_index, eqns)
-                    dense_eqns = to_dense_monomials(eqns)
-                    @show dense_eqns
-                    if !(rem(one(eltype(dense_eqns)), gröbner_basis(dense_eqns)) == 0)
-                        count += 1
-                    end
-                end
+    for row in indices(res,1), col in indices(res,2)
+        inner = res[row,col]
+        for inner_row in indices(inner,1), inner_col in indices(inner,2)
+            # Koszul signs; see formula in the documentation string
+            if col%2 == 0 && (inner_row+inner_col)%2 == 1
+                inner[inner_row, inner_col] *= -1
             end
         end
+        # make sure gradings alternate in the output matrix: they alternate
+        # in both inner and outer, and the result grading is their sum. At a
+        # boundary between two 'inner' matrices, both signs change, so the
+        # adjacent rows/columns have the same sign. We can fix this by reversing
+        # the rows/columns within an inner matrix, depending on the sign of the
+        # outer row/column.
+        if row%2 == 0
+            inner[:,:] = inner[end:-1:1,:]
+        end
+        if col%2 == 0
+            inner[:,:] = inner[:,end:-1:1]
+        end
+    end
+    return from_alternating_grades(flatten_blocks(res))
+end
+
+"""
+    A⨶B
+
+Tensor product of matrix factorizations.
+"""
+⨶(A,B) = A⨷eye(B) + eye(A)⨷B
+
+"""
+    ⨶(A,B,W,vars...)
+
+Finite-rank homotopy representation of A⨶B, where we remove the variables
+`vars` from the result. See the pushforward paper by Dykerhoff&Murfet.
+"""
+function ⨶(A,B,W,vars...)
+    R,_ = polynomial_ring(vars...;basering=basering(W))
+    ∇W = diff.(W, vars)
+    Hs = map(x->diff(A, x), vars)
+    Hs = map(h->h⨷eye(B), Hs)
+
+    Jacobian = R/Ideal(∇W...)
+
+    Q = A⨶B
+    Q_inflated = representation_matrix.(Jacobian, Q)
+
+    flatten_blocks(Q_inflated)
+end
+
+"""
+    unit_matrix_factorization(f, left_vars, right_vars)
+
+A ℤ/2-graded matrix that squares to `f - f(;left_vars => right_vars)` times
+the identity matrix.
+
+The source for this formulation is
+
+> Adjunctions and defects in Landau-Ginzburg models, Nils Carqueville and Daniel Murfet
+"""
+function unit_matrix_factorization(f, left_vars, right_vars)
+    R = typeof(f)
+    function ∂(f, n)
+        for i in 1:n-1
+            f = f(; left_vars[i] => R(right_vars[i]))
+        end
+        factors = div(R(f - f(; left_vars[n] => R(right_vars[n]))), [R(left_vars[n]) - R(right_vars[n])])
+        factors[1]
     end
 
-    info("Found $count possibilities")
+    # x represents, through its bit-representation, a basis element of the exterior
+    # algebra. To be precise, x represents the element theta_i_1 \wedge ... \wedge theta_i_n
+    # where i_1 ... i_n are the bits set in x.
+    #
+    # The use of 'gray code' (see wikipedia) ensures that subsequent elements differ by
+    # exactly one bit. This way, rows/columns of our result matrix have _alternating_ signs.
+    N = length(left_vars)
+    gray_code(x) = xor(x, x>>1)
+    permutation = map(n->gray_code(n)+1, 0:2^N-1)
+    inv_perm = invperm(permutation)
+    to_index(x) = inv_perm[x+1]
+
+    function wedge_product_matrix(T, i)
+        result = zeros(T, 2^N,2^N)
+        for j in 0:2^N-1
+            j&(1<<(i-1)) != 0 && continue
+
+            k = j | (1 << (i-1))
+            sign = (-1)^count_ones(j & (1<<i - 1))
+            result[to_index(j), to_index(k)] = T(sign)
+        end
+        return result
+    end
+
+    function lift_matrix(T, i)
+        result = zeros(T, 2^N, 2^N)
+        for j in 0:2^N-1
+            j&(1<<(i-1)) == 0 && continue
+
+            k = j & ~(1<<(i-1))
+            sign = (-1)^count_ones(j & (1<<i - 1))
+            result[to_index(j), to_index(k)] = T(sign)
+        end
+        return result
+    end
+
+    delta_plus = sum( ∂(f, i) * wedge_product_matrix(R, i) for i=1:N )
+    delta_minus = sum( (R(left_vars[i]) - R(right_vars[i])) * lift_matrix(R, i) for i = 1:N )
+    return from_alternating_grades(delta_plus + delta_minus)
 end
 
-function E14_E14()
-    @ring! ℚ[a2,a3,a4,a5,
-             b22,b23,b24,
-             c1,
-             x,y,z,u,v,w]
-
-    # ARC: conditions on the parameters -----------------------
-    b21=-1//2*(-2*b22*c1+2*b24*c1^2-2*b23*c1^3+c1^4+2*a5*c1^4)
-    a1=b21+a2*c1-b22*c1-a4*c1^2+b24*c1^2+a3*c1^3-b23*c1^3+c1^4
-    d11=a1*a5+a5*b21+a3*b22+a2*b23+a4*b24-a2*a5*c1-a5*b22*c1-a4*b23*c1-a3*b24*c1+a4*a5*c1^2+a3*b23*c1^2+a5*b24*c1^2-a3*a5*c1^3-a5*b23*c1^3+a5^2*c1^4
-    b25=a5
-    d14=a5*b25
-    d155=a5*b23+a3*b25-c1*d14
-    d13=a3*b23+a5*b24+a4*b25-c1*d155
-    d12=a5*b22+a4*b23+a3*b24+a2*b25-c1*d13
-    d10=a5+b25
-    d8=a3*b21+a4*b22+a1*b23+a2*b24-c1*d11
-    d7=a3+b23-c1*d10
-    d5=a4*b21+a2*b22+a1*b24-a3*b21*c1-a4*b22*c1-a1*b23*c1-a2*b24*c1+a1*a5*c1^2+a5*b21*c1^2+a3*b22*c1^2+a2*b23*c1^2+a4*b24*c1^2-a2*a5*c1^3-a5*b22*c1^3-a4*b23*c1^3-a3*b24*c1^3+a4*a5*c1^4+a3*b23*c1^4+a5*b24*c1^4-a3*a5*c1^5-a5*b23*c1^5+a5^2*c1^6
-    d2=a2*b21+a1*b22-c1*d5
-    d4=a4+b24-a3*c1-b23*c1+2*a5*c1^2
-    d1=a2+b22-c1*d4
-    d9=-a3+b23-c1
-    d6=-a4+b24-c1*d9
-    d3=-a2+b22-c1*d6
-    # ----------------------------------------------------------
-
-    # ARC: In this case, we used directly the structure of the ansatz for a matrix factorization, which makes us have less parameters to take care of
-    Q = StandardDuality(
-        d15=z+w+a1*u^4+a2*x*u^3+a3*x^3*u+a4*x^2*u^2+a5*x^4,
-        d16=y^2+y*v+v^2,
-        d17=x^3*z+d1*u^3*w+d2*u^7+d3*z*u^3+d4*x*u^2*w+d5*x*u^6+d6*x*z*u^2+d7*x^2*u*w+d8*x^2*u^5+d9*x^2*z*u+d10*x^3*w+d11*x^3*u^4+d12*x^4*u^3+d13*x^5*u^2+d14*x^7+d155*x^6*u,
-        d25=y-v,
-        d26=-z+w+b21*u^4+b22*x*u^3+b23*x^3*u+b24*x^2*u^2+b25*x^4,
-        d35=x+c1*u,
-    )
-    # ----------------------------------------------------------
-
-    f1, f2 = (c1^4 - 2c1^2 + 2)//2, (c1^4 + 2c1^2 + 2)//2
-
-    Q, f1, f2
-end
-
-function U12_1_U12_3()
-    @ring! ℚ[a1,a2,b1,b2,c1,c2,x,y,z,u,v,w]
-
-    Q = StandardDuality(
-        d15 = z + a1*v + a2*w,
-        d16 = -y*z + (-a1^2 + a1*b1 + a1*c1)*v^2 + (-2a1*a2 + b1*a2 + c1*a2 + a1*b2 + a1*c2)*v*w +
-              + a2*(-a2+b2+c2)*w^2 + c1*v*z + c2*w*z,
-        d17 = u^3 + u^2*x + u*x^2 + x^3,
-        d25 = -y + b1*v + b2*w,
-        d26 = -y*z + b1*c1*v^2 + (c1*b2 + b1*c2)*v*w + b2*c2*w^2 - (-a1+b1+c1)*v*y -
-              (-a2+b2+c2)*w*y,
-        d35 = x - u,
-    )
-
-    f1 = -1 + a1^2*b1 - a1*b1^2
-    f2 = 2a1*b1*a2 - b1^2*a2 + a1^2*b2 - 2a1*b1*b2
-    f3 = b1*a2^2 + 2a1*a2*b2 - 2b1*a2*b2 - a1*b2^2
-    f4 = -1 + a2^2*b2 - a2*b2^2
-
-    Q, f1, f2, f3, f4
-end
-
-function W12_W12()
-    @ring! ℚ[a,b,c,x,y,z,u,v,w]
-
-    f1 = a^2-a*b
-    f2 = -a*b^3+4*a^3*c+4*a*b^2*c-5*a*b*c^2+2*a*c^3+a^2*(b^2-6*b*c+5*c^2)+1//4*(4+b^4-4*b^3*c+6*b^2*c^2-4*b*c^3+c^4)
-
-    Q1 = [w+a*u*x+1//2*(-2*a*b+b^2+2*a*c-2*b*c+c^2)*x^2+z u*w+c*w*x+(1//2*(-a+b)*(-2*a*b+b^2+2*a*c-2*b*c+c^2)+a*(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)))*x^3+b*x*z v^4+v^3*y+v^2*y^2+v*y^3+y^4 0
-          u+(-2*a+b-c)*x -w+(-a+b)*u*x+(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2))*x^2+z 0 v^4+v^3*y+v^2*y^2+v*y^3+y^4
-          v-y 0 -w+(-a+b)*u*x+(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2))*x^2+z -u*w-c*w*x+(-(1//2)*(-a+b)*(-2*a*b+b^2+2*a*c-2*b*c+c^2)-a*(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)))*x^3-b*x*z
-          0 v-y -u+(2*a-b+c)*x w+a*u*x+1//2*(-2*a*b+b^2+2*a*c-2*b*c+c^2)*x^2+z
-         ]
-
-    Q2 = [w+(a-b)*u*x+(-b*(-2*a+b-c)+1//2*(-2*a*b+b^2+2*a*c-2*b*c+c^2))*x^2-z u*w+c*w*x+(1//2*(-a+b)*(-2*a*b+b^2+2*a*c-2*b*c+c^2)+a*(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)))*x^3+b*x*z v^4+v^3*y+v^2*y^2+v*y^3+y^4 0
-          u+(-2*a+b-c)*x -w-a*u*x+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)*x^2-z 0 v^4+v^3*y+v^2*y^2+v*y^3+y^4
-          v-y 0 -w-a*u*x+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)*x^2-z -u*w-c*w*x+(-(1//2)*(-a+b)*(-2*a*b+b^2+2*a*c-2*b*c+c^2)-a*(b*(-2*a+b-c)+1//2*(2*a*b-b^2-2*a*c+2*b*c-c^2)))*x^3-b*x*z
-          0 v-y -u+(2*a-b+c)*x w+(a-b)*u*x+(-b*(-2*a+b-c)+1//2*(-2*a*b+b^2+2*a*c-2*b*c+c^2))*x^2-z
-         ]
-
-    z = zeros(Q1)
-
-    Q = [z Q1; Q2 z]
-
-    Q, f1, f2
-end
-
-A5_A2A2(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
-    # compatibility with notation below
-    A = a
-    lookup = Dict(1=>x,2=>y,3=>u,4=>v)
-    a(i) = A[i]
-    x(i) = lookup[i]
-
-    # from https://nms.kcl.ac.uk/andreas.recknagel/oeq-page/defectslistforweb.txt
-    Q = zeros(R, 4,4)
-    Q[1,3]=x(1)^2-x(3)*a(2)-x(4)*a(2)
-    Q[1,4]=x(1)*x(3)*a(1)-x(1)*x(4)*a(1)+x(2)
-    Q[2,3]=-x(1)*x(3)*a(1)+x(1)*x(4)*a(1)+x(2)
-    Q[2,4]=-64*x(4)^2*a(2)^8+16*x(3)*x(4)*a(2)^5-x(1)^4-x(1)^2*x(3)*a(2)-x(1)^2*x(4)*a(2)-4*x(3)^2*a(2)^2
-    Q[3,1]=64*x(4)^2*a(2)^8-16*x(3)*x(4)*a(2)^5+x(1)^4+x(1)^2*x(3)*a(2)+x(1)^2*x(4)*a(2)+4*x(3)^2*a(2)^2
-    Q[3,2]=x(1)*x(3)*a(1)-x(1)*x(4)*a(1)+x(2)
-    Q[4,1]=-x(1)*x(3)*a(1)+x(1)*x(4)*a(1)+x(2)
-    Q[4,2]=-x(1)^2+x(3)*a(2)+x(4)*a(2)
-
-    return Q
-end
-
-E6_D7(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
-    A = a
-    lookup = Dict(1=>x,2=>y,3=>u,4=>v)
-    a(i) = A[i]
-    x(i) = lookup[i]
-
-    # from https://nms.kcl.ac.uk/andreas.recknagel/oeq-page/defectslistforweb.txt
-    Q = zeros(R, 6,6)
-    Q[1,4]=(2*a(1)-a(2)^2)*x(3)
-    Q[1,5]=x(2)
-    Q[1,6]=(2*a(1)^2-a(1)*a(2)^2)*x(3)^2+x(1)
-    Q[2,4]=x(2)
-    Q[2,5]=-x(3)^2+x(1)
-    Q[2,6]=(-a(2))*x(4)
-    Q[3,4]=(2*a(1)^2-3*a(1)*a(2)^2+a(2)^4+1)*x(3)^2+x(1)
-    Q[3,5]=(a(2))*x(4)
-    Q[3,6]=(-2*a(1)+a(2)^2)*x(3)^3+x(2)^2+(2*a(1)-a(2)^2)*x(1)*x(3)
-    Q[4,1]=(-2*a(1)+a(2)^2)*x(3)^5+x(2)^2*x(3)^2+(4*a(1)-2*a(2)^2)*x(1)*x(3)^3-x(1)*x(2)^2+(-2*a(1)+a(2)^2)*x(1)^2*x(3)+(-a(2)^2)*x(4)^2
-    Q[4,2]=(-2*a(1)+a(2)^2)*x(2)*x(3)^3+x(2)^3+(2*a(1)-a(2)^2)*x(1)*x(2)*x(3)+(-2*a(1)^2*a(2)+3*a(1)*a(2)^3-a(2)^5-a(2))*x(3)^2*x(4)+(-a(2))*x(1)*x(4)
-    Q[4,3]=(-2*a(1)^2+a(1)*a(2)^2)*x(3)^4+(2*a(1)^2-a(1)*a(2)^2-1)*x(1)*x(3)^2+x(1)^2+(a(2))*x(2)*x(4)
-    Q[5,1]=(-2*a(1)+a(2)^2)*x(2)*x(3)^3+x(2)^3+(2*a(1)-a(2)^2)*x(1)*x(2)*x(3)+(2*a(1)^2*a(2)-a(1)*a(2)^3)*x(3)^2*x(4)+(a(2))*x(1)*x(4)
-    Q[5,2]=(4*a(1)^4-8*a(1)^3*a(2)^2+5*a(1)^2*a(2)^4+6*a(1)^2-a(1)*a(2)^6-5*a(1)*a(2)^2+a(2)^4)*x(3)^4+(-2*a(1)+a(2)^2)*x(2)^2*x(3)+x(1)*x(3)^2+x(1)^2
-    Q[5,3]=(-2*a(1)^2+a(1)*a(2)^2)*x(2)*x(3)^2-x(1)*x(2)+(-2*a(1)*a(2)+a(2)^3)*x(3)*x(4)
-    Q[6,1]=(-4*a(1)^4+8*a(1)^3*a(2)^2-5*a(1)^2*a(2)^4-8*a(1)^2+a(1)*a(2)^6+8*a(1)*a(2)^2-2*a(2)^4)*x(3)^4+(2*a(1)^2-3*a(1)*a(2)^2+a(2)^4)*x(1)*x(3)^2+x(1)^2+(-a(2))*x(2)*x(4)
-    Q[6,2]=(-2*a(1)^2+3*a(1)*a(2)^2-a(2)^4-1)*x(2)*x(3)^2-x(1)*x(2)+(2*a(1)*a(2)-a(2)^3)*x(3)*x(4)
-    Q[6,3]=(2*a(1)-a(2)^2)*x(3)^3+x(2)^2+(-2*a(1)+a(2)^2)*x(1)*x(3)
-
-    return Q
-end
-
-E7_D10(xs=xs,us=us) = @with_xu 2 ℚ[a[]] begin
-    # compatibility with notation below
-    A = a
-    lookup = Dict(1=>x,2=>y,3=>u,4=>v)
-    a(i) = A[i]
-    x(i) = lookup[i]
-
-    # from https://nms.kcl.ac.uk/andreas.recknagel/oeq-page/defectslistforweb.txt
-    Q = zeros(R,4,4)
-    Q[1,3]=(-a(1)^3-2*a(1)*a(2))*x(3)^3+(a(1))*x(2)*x(3)+x(1)
-    Q[1,4]=(-3//2*a(1)^5-3*a(1)^3*a(2)-1//2*a(1)*a(2)^2)*x(3)^4+(-a(1)*a(2))*x(2)*x(3)^2+(a(1))*x(2)^2+(a(1)*a(3))*x(4)
-    Q[2,3]=(-3//2*a(1)^4-3*a(1)^2*a(2)-1//2*a(2)^2)*x(3)^5+(-a(2))*x(2)*x(3)^3+x(2)^2*x(3)+(-a(3))*x(3)*x(4)
-    Q[2,4]=(a(1)^6+4*a(1)^4*a(2)+4*a(1)^2*a(2)^2)*x(3)^6+(-2*a(1)^4-4*a(1)^2*a(2))*x(2)*x(3)^4+(a(1)^2)*x(2)^2*x(3)^2+(a(1)^3+2*a(1)*a(2))*x(1)*x(3)^3+x(2)^3+(-a(1))*x(1)*x(2)*x(3)+x(1)^2
-    Q[3,1]=(a(1)^6+4*a(1)^4*a(2)+4*a(1)^2*a(2)^2)*x(3)^6+(-2*a(1)^4-4*a(1)^2*a(2))*x(2)*x(3)^4+(a(1)^2)*x(2)^2*x(3)^2+(a(1)^3+2*a(1)*a(2))*x(1)*x(3)^3+x(2)^3+(-a(1))*x(1)*x(2)*x(3)+x(1)^2
-    Q[3,2]=(3//2*a(1)^5+3*a(1)^3*a(2)+1//2*a(1)*a(2)^2)*x(3)^4+(a(1)*a(2))*x(2)*x(3)^2+(-a(1))*x(2)^2+(-a(1)*a(3))*x(4)
-    Q[4,1]=(3//2*a(1)^4+3*a(1)^2*a(2)+1//2*a(2)^2)*x(3)^5+(a(2))*x(2)*x(3)^3-x(2)^2*x(3)+(a(3))*x(3)*x(4)
-    Q[4,2]=(-a(1)^3-2*a(1)*a(2))*x(3)^3+(a(1))*x(2)*x(3)+x(1)
-
-    return Q
-end
-
-E8_D16(xs=xs,us=us) = @with_xu 2 ℚ[a[]] begin
-    # compatibility with notation below
-    A = a
-    lookup = Dict(1=>x,2=>y,3=>u,4=>v)
-    a(i) = A[i]
-    x(i) = lookup[i]
-
-    # from https://nms.kcl.ac.uk/andreas.recknagel/oeq-page/defectslistforweb.txt
-    Q = zeros(R,6,6)
-    Q[1,4]=(-a(1))*x(3)
-    Q[1,5]=(-a(3))*x(3)^3+x(2)
-    Q[1,6]=(-a(1)^2)*x(2)*x(3)^2+x(1)
-    Q[2,4]=(1//2*a(1)^3+a(1)*a(2)^2*a(3)-1//2*a(1)*a(2)^2*a(4)-a(3)+a(4))*x(3)^3-x(2)
-    Q[2,5]=(1//4*a(1)^5+1//2*a(1)^2*a(3)-3//2*a(1)^2*a(4)-2*a(2)^2*a(3)^2+5//2*a(2)^2*a(3)*a(4)-3//4*a(2)^2*a(4)^2)*x(3)^5+(-1//2*a(1)^2-a(2)^2*a(3)+1//2*a(2)^2*a(4))*x(2)*x(3)^2+x(1)
-    Q[2,6]=(-7//8*a(1)^7-1//4*a(1)^5*a(2)^2*a(3)+1//8*a(1)^5*a(2)^2*a(4)+1//4*a(1)^4*a(3)+11//2*a(1)^4*a(4)+1//2*a(1)^3*a(2)^4*a(3)^2-1//2*a(1)^3*a(2)^4*a(3)*a(4)+1//8*a(1)^3*a(2)^4*a(4)^2+7*a(1)^2*a(2)^2*a(3)^2-6*a(1)^2*a(2)^2*a(3)*a(4)+5//4*a(1)^2*a(2)^2*a(4)^2+a(1)*a(2)^6*a(3)^3-3//2*a(1)*a(2)^6*a(3)^2*a(4)+3//4*a(1)*a(2)^6*a(3)*a(4)^2-1//8*a(1)*a(2)^6*a(4)^3-2*a(1)*a(3)^2-a(1)*a(4)^2-a(2)^4*a(3)^3+a(2)^4*a(3)^2*a(4)-1//4*a(2)^4*a(3)*a(4)^2+a(4)*a(5))*x(3)^7+(3//4*a(1)^4+a(1)^2*a(2)^2*a(3)-1//2*a(1)^2*a(2)^2*a(4)-a(1)*a(3)-a(1)*a(4)-a(2)^4*a(3)^2+a(2)^4*a(3)*a(4)-1//4*a(2)^4*a(4)^2)*x(2)*x(3)^4+(-a(1))*x(2)^2*x(3)+(-a(1)^2)*x(1)*x(3)^2+(a(2))*x(4)
-    Q[3,4]=(-1//4*a(1)^5+1//2*a(1)^2*a(3)+3//2*a(1)^2*a(4)-a(1)*a(5)+2*a(2)^2*a(3)^2-5//2*a(2)^2*a(3)*a(4)+3//4*a(2)^2*a(4)^2)*x(3)^5+(1//2*a(1)^2+a(2)^2*a(3)-1//2*a(2)^2*a(4))*x(2)*x(3)^2+x(1)
-    Q[3,5]=(-1//4*a(1)^7-1//2*a(1)^5*a(2)^2*a(3)+1//4*a(1)^5*a(2)^2*a(4)+3//2*a(1)^4*a(4)+2*a(1)^2*a(2)^2*a(3)^2+1//2*a(1)^2*a(2)^2*a(3)*a(4)-3//4*a(1)^2*a(2)^2*a(4)^2+4*a(2)^4*a(3)^3-7*a(2)^4*a(3)^2*a(4)+4*a(2)^4*a(3)*a(4)^2-3//4*a(2)^4*a(4)^3-a(3)*a(5)+a(4)*a(5))*x(3)^7+(a(5))*x(2)*x(3)^4+(a(2))*x(4)
-    Q[3,6]=(1//2*a(1)^9+a(1)^7*a(2)^2*a(3)-1//2*a(1)^7*a(2)^2*a(4)-1//8*a(1)^6*a(3)-17//4*a(1)^6*a(4)-1//4*a(1)^5*a(2)^4*a(3)^2+1//4*a(1)^5*a(2)^4*a(3)*a(4)-1//16*a(1)^5*a(2)^4*a(4)^2-4*a(1)^4*a(2)^2*a(3)^2-17//8*a(1)^4*a(2)^2*a(3)*a(4)+33//16*a(1)^4*a(2)^2*a(4)^2-a(1)^3*a(2)^6*a(3)^3+3//2*a(1)^3*a(2)^6*a(3)^2*a(4)-3//4*a(1)^3*a(2)^6*a(3)*a(4)^2+1//8*a(1)^3*a(2)^6*a(4)^3+a(1)^3*a(3)^2+15//2*a(1)^3*a(4)^2-13//2*a(1)^2*a(2)^4*a(3)^3+11*a(1)^2*a(2)^4*a(3)^2*a(4)-49//8*a(1)^2*a(2)^4*a(3)*a(4)^2+9//8*a(1)^2*a(2)^4*a(4)^3-1//2*a(1)^2*a(4)*a(5)-a(1)*a(2)^8*a(3)^4+2*a(1)*a(2)^8*a(3)^3*a(4)-3//2*a(1)*a(2)^8*a(3)^2*a(4)^2+1//2*a(1)*a(2)^8*a(3)*a(4)^3-1//16*a(1)*a(2)^8*a(4)^4+2*a(1)*a(2)^2*a(3)^3+7*a(1)*a(2)^2*a(3)^2*a(4)-7*a(1)*a(2)^2*a(3)*a(4)^2+3//2*a(1)*a(2)^2*a(4)^3+2*a(2)^6*a(3)^4-7//2*a(2)^6*a(3)^3*a(4)+9//4*a(2)^6*a(3)^2*a(4)^2-5//8*a(2)^6*a(3)*a(4)^3+1//16*a(2)^6*a(4)^4-a(2)^2*a(3)*a(4)*a(5)+1//2*a(2)^2*a(4)^2*a(5)-2*a(3)^2*a(4)+2*a(3)*a(4)^2-a(4)^3)*x(3)^9+(-5//8*a(1)^6-1//4*a(1)^4*a(2)^2*a(3)+1//8*a(1)^4*a(2)^2*a(4)+1//2*a(1)^3*a(3)+4*a(1)^3*a(4)+1//2*a(1)^2*a(2)^4*a(3)^2-1//2*a(1)^2*a(2)^4*a(3)*a(4)+1//8*a(1)^2*a(2)^4*a(4)^2-a(1)^2*a(5)+5*a(1)*a(2)^2*a(3)^2-7//2*a(1)*a(2)^2*a(3)*a(4)+1//2*a(1)*a(2)^2*a(4)^2+a(2)^6*a(3)^3-3//2*a(2)^6*a(3)^2*a(4)+3//4*a(2)^6*a(3)*a(4)^2-1//8*a(2)^6*a(4)^3-a(3)^2+a(3)*a(4)-a(4)^2)*x(2)*x(3)^6+(1//2*a(1)^3+a(1)*a(2)^2*a(3)-1//2*a(1)*a(2)^2*a(4)-a(4))*x(2)^2*x(3)^3+(a(5))*x(1)*x(3)^4-x(2)^3+(-1//2*a(1)^2*a(2)-a(2)^3*a(3)+1//2*a(2)^3*a(4))*x(3)^2*x(4)
-    Q[4,1]=(3//32*a(1)^14+1//4*a(1)^12*a(2)^2*a(3)-1//8*a(1)^12*a(2)^2*a(4)-9//32*a(1)^11*a(3)-7//8*a(1)^11*a(4)+1//16*a(1)^10*a(2)^4*a(3)^2-1//16*a(1)^10*a(2)^4*a(3)*a(4)+1//64*a(1)^10*a(2)^4*a(4)^2-17//8*a(1)^9*a(2)^2*a(3)^2-31//32*a(1)^9*a(2)^2*a(3)*a(4)+65//64*a(1)^9*a(2)^2*a(4)^2-1//4*a(1)^8*a(2)^6*a(3)^3+3//8*a(1)^8*a(2)^6*a(3)^2*a(4)-3//16*a(1)^8*a(2)^6*a(3)*a(4)^2+1//32*a(1)^8*a(2)^6*a(4)^3+5//16*a(1)^8*a(3)^2+37//16*a(1)^8*a(3)*a(4)+1//4*a(1)^8*a(4)^2-7//2*a(1)^7*a(2)^4*a(3)^3+19//4*a(1)^7*a(2)^4*a(3)^2*a(4)-17//8*a(1)^7*a(2)^4*a(3)*a(4)^2+5//16*a(1)^7*a(2)^4*a(4)^3+7//8*a(1)^7*a(3)*a(5)-a(1)^7*a(4)*a(5)-1//4*a(1)^6*a(2)^8*a(3)^4+1//2*a(1)^6*a(2)^8*a(3)^3*a(4)-3//8*a(1)^6*a(2)^8*a(3)^2*a(4)^2+1//8*a(1)^6*a(2)^8*a(3)*a(4)^3-1//64*a(1)^6*a(2)^8*a(4)^4+11//4*a(1)^6*a(2)^2*a(3)^3+25//4*a(1)^6*a(2)^2*a(3)^2*a(4)+17//8*a(1)^6*a(2)^2*a(3)*a(4)^2-95//32*a(1)^6*a(2)^2*a(4)^3+2*a(1)^5*a(2)^6*a(3)^3*a(4)-3*a(1)^5*a(2)^6*a(3)^2*a(4)^2+3//2*a(1)^5*a(2)^6*a(3)*a(4)^3-1//4*a(1)^5*a(2)^6*a(4)^4+1//4*a(1)^5*a(2)^2*a(3)^2*a(5)-5//8*a(1)^5*a(2)^2*a(3)*a(4)*a(5)+1//4*a(1)^5*a(2)^2*a(4)^2*a(5)-1//2*a(1)^5*a(3)^3-a(1)^5*a(3)^2*a(4)-17//4*a(1)^5*a(3)*a(4)^2+10*a(1)^5*a(4)^3+41//4*a(1)^4*a(2)^4*a(3)^4+3//4*a(1)^4*a(2)^4*a(3)^3*a(4)-63//4*a(1)^4*a(2)^4*a(3)^2*a(4)^2+161//16*a(1)^4*a(2)^4*a(3)*a(4)^3-117//64*a(1)^4*a(2)^4*a(4)^4-1//4*a(1)^4*a(3)^2*a(5)-5*a(1)^4*a(3)*a(4)*a(5)+25//4*a(1)^4*a(4)^2*a(5)+5//2*a(1)^3*a(2)^8*a(3)^5-5*a(1)^3*a(2)^8*a(3)^4*a(4)+15//4*a(1)^3*a(2)^8*a(3)^3*a(4)^2-5//4*a(1)^3*a(2)^8*a(3)^2*a(4)^3+5//32*a(1)^3*a(2)^8*a(3)*a(4)^4-1//2*a(1)^3*a(2)^4*a(3)^3*a(5)+a(1)^3*a(2)^4*a(3)^2*a(4)*a(5)-5//8*a(1)^3*a(2)^4*a(3)*a(4)^2*a(5)+1//8*a(1)^3*a(2)^4*a(4)^3*a(5)-3*a(1)^3*a(2)^2*a(3)^4-4*a(1)^3*a(2)^2*a(3)^3*a(4)+117//4*a(1)^3*a(2)^2*a(3)^2*a(4)^2-61//2*a(1)^3*a(2)^2*a(3)*a(4)^3+69//8*a(1)^3*a(2)^2*a(4)^4+12*a(1)^2*a(2)^6*a(3)^5-57//2*a(1)^2*a(2)^6*a(3)^4*a(4)+99//4*a(1)^2*a(2)^6*a(3)^3*a(4)^2-75//8*a(1)^2*a(2)^6*a(3)^2*a(4)^3+21//16*a(1)^2*a(2)^6*a(3)*a(4)^4-7*a(1)^2*a(2)^2*a(3)^3*a(5)+29//2*a(1)^2*a(2)^2*a(3)^2*a(4)*a(5)-29//4*a(1)^2*a(2)^2*a(3)*a(4)^2*a(5)+7//8*a(1)^2*a(2)^2*a(4)^3*a(5)+a(1)^2*a(3)^3*a(4)-4*a(1)^2*a(3)^2*a(4)^2+7//2*a(1)^2*a(3)*a(4)^3-3//2*a(1)^2*a(4)^4+2*a(1)*a(2)^10*a(3)^6-13//2*a(1)*a(2)^10*a(3)^5*a(4)+35//4*a(1)*a(2)^10*a(3)^4*a(4)^2-25//4*a(1)*a(2)^10*a(3)^3*a(4)^3+5//2*a(1)*a(2)^10*a(3)^2*a(4)^4-17//32*a(1)*a(2)^10*a(3)*a(4)^5+3//64*a(1)*a(2)^10*a(4)^6-a(1)*a(2)^6*a(3)^4*a(5)+5//2*a(1)*a(2)^6*a(3)^3*a(4)*a(5)-9//4*a(1)*a(2)^6*a(3)^2*a(4)^2*a(5)+7//8*a(1)*a(2)^6*a(3)*a(4)^3*a(5)-1//8*a(1)*a(2)^6*a(4)^4*a(5)-4*a(1)*a(2)^4*a(3)^5+23*a(1)*a(2)^4*a(3)^4*a(4)-42*a(1)*a(2)^4*a(3)^3*a(4)^2+137//4*a(1)*a(2)^4*a(3)^2*a(4)^3-13*a(1)*a(2)^4*a(3)*a(4)^4+15//8*a(1)*a(2)^4*a(4)^5+2*a(1)*a(3)^3*a(5)-2*a(1)*a(3)^2*a(4)*a(5)+a(1)*a(3)*a(4)^2*a(5)-a(1)*a(4)^3*a(5)-a(2)^8*a(3)^5*a(4)+11//4*a(2)^8*a(3)^4*a(4)^2-3*a(2)^8*a(3)^3*a(4)^3+13//8*a(2)^8*a(3)^2*a(4)^4-7//16*a(2)^8*a(3)*a(4)^5+3//64*a(2)^8*a(4)^6+a(2)^4*a(3)^4*a(5)-9//4*a(2)^4*a(3)^2*a(4)^2*a(5)+7//4*a(2)^4*a(3)*a(4)^3*a(5)-3//8*a(2)^4*a(4)^4*a(5)-4*a(2)^2*a(3)^4*a(4)+9*a(2)^2*a(3)^3*a(4)^2-17//2*a(2)^2*a(3)^2*a(4)^3+4*a(2)^2*a(3)*a(4)^4-3//4*a(2)^2*a(4)^5-a(3)*a(4)*a(5)^2+a(4)^2*a(5)^2)*x(3)^14+(7//32*a(1)^11+7//16*a(1)^9*a(2)^2*a(3)-7//32*a(1)^9*a(2)^2*a(4)+3//8*a(1)^8*a(3)-43//16*a(1)^8*a(4)+1//2*a(1)^7*a(2)^4*a(3)^2-1//2*a(1)^7*a(2)^4*a(3)*a(4)+1//8*a(1)^7*a(2)^4*a(4)^2-5//8*a(1)^7*a(5)-5//2*a(1)^6*a(2)^2*a(3)^2-9//8*a(1)^6*a(2)^2*a(3)*a(4)+19//16*a(1)^6*a(2)^2*a(4)^2-1//2*a(1)^5*a(2)^6*a(3)^3+3//4*a(1)^5*a(2)^6*a(3)^2*a(4)-3//8*a(1)^5*a(2)^6*a(3)*a(4)^2+1//16*a(1)^5*a(2)^6*a(4)^3-1//4*a(1)^5*a(2)^2*a(3)*a(5)+1//8*a(1)^5*a(2)^2*a(4)*a(5)+1//2*a(1)^5*a(3)^2-3*a(1)^5*a(3)*a(4)+17//2*a(1)^5*a(4)^2-3*a(1)^4*a(2)^4*a(3)^3+9//4*a(1)^4*a(2)^4*a(3)*a(4)^2-3//4*a(1)^4*a(2)^4*a(4)^3+9//2*a(1)^4*a(4)*a(5)-3//2*a(1)^3*a(2)^8*a(3)^4+3*a(1)^3*a(2)^8*a(3)^3*a(4)-9//4*a(1)^3*a(2)^8*a(3)^2*a(4)^2+3//4*a(1)^3*a(2)^8*a(3)*a(4)^3-3//32*a(1)^3*a(2)^8*a(4)^4+1//2*a(1)^3*a(2)^4*a(3)^2*a(5)-1//2*a(1)^3*a(2)^4*a(3)*a(4)*a(5)+1//8*a(1)^3*a(2)^4*a(4)^2*a(5)-3//2*a(1)^3*a(2)^2*a(3)^3+33//2*a(1)^3*a(2)^2*a(3)^2*a(4)-87//8*a(1)^3*a(2)^2*a(3)*a(4)^2+3//2*a(1)^3*a(2)^2*a(4)^3-3*a(1)^2*a(2)^6*a(3)^4+5*a(1)^2*a(2)^6*a(3)^3*a(4)-3*a(1)^2*a(2)^6*a(3)^2*a(4)^2+3//4*a(1)^2*a(2)^6*a(3)*a(4)^3-1//16*a(1)^2*a(2)^6*a(4)^4+4*a(1)^2*a(2)^2*a(3)^2*a(5)-3*a(1)^2*a(2)^2*a(3)*a(4)*a(5)+1//2*a(1)^2*a(2)^2*a(4)^2*a(5)+1//2*a(1)^2*a(3)^3-3*a(1)^2*a(3)^2*a(4)+3*a(1)^2*a(3)*a(4)^2-2*a(1)^2*a(4)^3-a(1)*a(2)^10*a(3)^5+5//2*a(1)*a(2)^10*a(3)^4*a(4)-5//2*a(1)*a(2)^10*a(3)^3*a(4)^2+5//4*a(1)*a(2)^10*a(3)^2*a(4)^3-5//16*a(1)*a(2)^10*a(3)*a(4)^4+1//32*a(1)*a(2)^10*a(4)^5+a(1)*a(2)^6*a(3)^3*a(5)-3//2*a(1)*a(2)^6*a(3)^2*a(4)*a(5)+3//4*a(1)*a(2)^6*a(3)*a(4)^2*a(5)-1//8*a(1)*a(2)^6*a(4)^3*a(5)+8*a(1)*a(2)^4*a(3)^4-21//2*a(1)*a(2)^4*a(3)^3*a(4)+6*a(1)*a(2)^4*a(3)^2*a(4)^2-17//8*a(1)*a(2)^4*a(3)*a(4)^3+3//8*a(1)*a(2)^4*a(4)^4-a(1)*a(3)^2*a(5)-2*a(1)*a(4)^2*a(5)+a(2)^8*a(3)^4*a(4)-2*a(2)^8*a(3)^3*a(4)^2+3//2*a(2)^8*a(3)^2*a(4)^3-1//2*a(2)^8*a(3)*a(4)^4+1//16*a(2)^8*a(4)^5-2*a(2)^4*a(3)^2*a(4)*a(5)+2*a(2)^4*a(3)*a(4)^2*a(5)-1//2*a(2)^4*a(4)^3*a(5)-2*a(2)^2*a(3)^4+5//2*a(2)^2*a(3)^3*a(4)-9//4*a(2)^2*a(3)^2*a(4)^2+5//4*a(2)^2*a(3)*a(4)^3-1//4*a(2)^2*a(4)^4+a(4)*a(5)^2)*x(2)*x(3)^11+(-3//16*a(1)^8-1//2*a(1)^6*a(2)^2*a(3)+1//4*a(1)^6*a(2)^2*a(4)+3//2*a(1)^5*a(4)+1//4*a(1)^4*a(5)+3//2*a(1)^3*a(2)^2*a(3)^2+2*a(1)^3*a(2)^2*a(3)*a(4)-11//8*a(1)^3*a(2)^2*a(4)^2+a(1)^2*a(2)^6*a(3)^3-3//2*a(1)^2*a(2)^6*a(3)^2*a(4)+3//4*a(1)^2*a(2)^6*a(3)*a(4)^2-1//8*a(1)^2*a(2)^6*a(4)^3-1//2*a(1)^2*a(3)^2+a(1)^2*a(3)*a(4)-2*a(1)^2*a(4)^2+3*a(1)*a(2)^4*a(3)^3-5//2*a(1)*a(2)^4*a(3)^2*a(4)+1//4*a(1)*a(2)^4*a(3)*a(4)^2+1//8*a(1)*a(2)^4*a(4)^3-2*a(1)*a(4)*a(5)+a(2)^8*a(3)^4-2*a(2)^8*a(3)^3*a(4)+3//2*a(2)^8*a(3)^2*a(4)^2-1//2*a(2)^8*a(3)*a(4)^3+1//16*a(2)^8*a(4)^4-a(2)^4*a(3)^2*a(5)+a(2)^4*a(3)*a(4)*a(5)-1//4*a(2)^4*a(4)^2*a(5)-a(2)^2*a(3)^3-1//2*a(2)^2*a(3)^2*a(4)+a(2)^2*a(3)*a(4)^2-1//4*a(2)^2*a(4)^3)*x(2)^2*x(3)^8+(-1//4*a(1)^9-1//2*a(1)^7*a(2)^2*a(3)+1//4*a(1)^7*a(2)^2*a(4)+1//8*a(1)^6*a(3)+11//4*a(1)^6*a(4)+1//4*a(1)^5*a(2)^4*a(3)^2-1//4*a(1)^5*a(2)^4*a(3)*a(4)+1//16*a(1)^5*a(2)^4*a(4)^2-1//4*a(1)^5*a(5)+2*a(1)^4*a(2)^2*a(3)^2+13//8*a(1)^4*a(2)^2*a(3)*a(4)-21//16*a(1)^4*a(2)^2*a(4)^2+a(1)^3*a(2)^6*a(3)^3-3//2*a(1)^3*a(2)^6*a(3)^2*a(4)+3//4*a(1)^3*a(2)^6*a(3)*a(4)^2-1//8*a(1)^3*a(2)^6*a(4)^3-a(1)^3*a(3)^2-15//2*a(1)^3*a(4)^2+5//2*a(1)^2*a(2)^4*a(3)^3-4*a(1)^2*a(2)^4*a(3)^2*a(4)+17//8*a(1)^2*a(2)^4*a(3)*a(4)^2-3//8*a(1)^2*a(2)^4*a(4)^3+1//2*a(1)^2*a(3)*a(5)+a(1)^2*a(4)*a(5)+a(1)*a(2)^8*a(3)^4-2*a(1)*a(2)^8*a(3)^3*a(4)+3//2*a(1)*a(2)^8*a(3)^2*a(4)^2-1//2*a(1)*a(2)^8*a(3)*a(4)^3+1//16*a(1)*a(2)^8*a(4)^4-2*a(1)*a(2)^2*a(3)^3-7*a(1)*a(2)^2*a(3)^2*a(4)+7*a(1)*a(2)^2*a(3)*a(4)^2-3//2*a(1)*a(2)^2*a(4)^3-2*a(2)^6*a(3)^4+7//2*a(2)^6*a(3)^3*a(4)-9//4*a(2)^6*a(3)^2*a(4)^2+5//8*a(2)^6*a(3)*a(4)^3-1//16*a(2)^6*a(4)^4+2*a(2)^2*a(3)^2*a(5)-3//2*a(2)^2*a(3)*a(4)*a(5)+1//4*a(2)^2*a(4)^2*a(5)+2*a(3)^2*a(4)-2*a(3)*a(4)^2+a(4)^3)*x(1)*x(3)^9+(1//2*a(1)^5+a(1)^3*a(2)^2*a(3)-1//2*a(1)^3*a(2)^2*a(4)+1//2*a(1)^2*a(3)-2*a(1)^2*a(4)+a(1)*a(2)^4*a(3)^2-a(1)*a(2)^4*a(3)*a(4)+1//4*a(1)*a(2)^4*a(4)^2-a(1)*a(5)-2*a(2)^2*a(3)^2+3//2*a(2)^2*a(3)*a(4)-1//4*a(2)^2*a(4)^2)*x(2)^3*x(3)^5+(5//8*a(1)^6+1//4*a(1)^4*a(2)^2*a(3)-1//8*a(1)^4*a(2)^2*a(4)-1//2*a(1)^3*a(3)-4*a(1)^3*a(4)-1//2*a(1)^2*a(2)^4*a(3)^2+1//2*a(1)^2*a(2)^4*a(3)*a(4)-1//8*a(1)^2*a(2)^4*a(4)^2+1//2*a(1)^2*a(5)-5*a(1)*a(2)^2*a(3)^2+7//2*a(1)*a(2)^2*a(3)*a(4)-1//2*a(1)*a(2)^2*a(4)^2-a(2)^6*a(3)^3+3//2*a(2)^6*a(3)^2*a(4)-3//4*a(2)^6*a(3)*a(4)^2+1//8*a(2)^6*a(4)^3+a(2)^2*a(3)*a(5)-1//2*a(2)^2*a(4)*a(5)+a(3)^2-a(3)*a(4)+a(4)^2)*x(1)*x(2)*x(3)^6+(-a(1)^7*a(2)-1//2*a(1)^5*a(2)^3*a(3)+1//4*a(1)^5*a(2)^3*a(4)+1//2*a(1)^4*a(2)*a(3)+25//4*a(1)^4*a(2)*a(4)+1//2*a(1)^3*a(2)^5*a(3)^2-1//2*a(1)^3*a(2)^5*a(3)*a(4)+1//8*a(1)^3*a(2)^5*a(4)^2+17//2*a(1)^2*a(2)^3*a(3)^2-6*a(1)^2*a(2)^3*a(3)*a(4)+7//8*a(1)^2*a(2)^3*a(4)^2+a(1)*a(2)^7*a(3)^3-3//2*a(1)*a(2)^7*a(3)^2*a(4)+3//4*a(1)*a(2)^7*a(3)*a(4)^2-1//8*a(1)*a(2)^7*a(4)^3-2*a(1)*a(2)^3*a(3)*a(5)+a(1)*a(2)^3*a(4)*a(5)-2*a(1)*a(2)*a(3)^2-a(1)*a(2)*a(4)^2+a(2)^5*a(3)^3-5//2*a(2)^5*a(3)^2*a(4)+7//4*a(2)^5*a(3)*a(4)^2-3//8*a(2)^5*a(4)^3+a(2)*a(3)*a(5)+a(2)*a(4)*a(5))*x(3)^7*x(4)+(-1//2*a(1)^2-a(2)^2*a(3)+1//2*a(2)^2*a(4))*x(2)^4*x(3)^2+(-1//2*a(1)^3-a(1)*a(2)^2*a(3)+1//2*a(1)*a(2)^2*a(4)+a(4))*x(1)*x(2)^2*x(3)^3+(-a(5))*x(1)^2*x(3)^4+(1//2*a(1)^4*a(2)-a(1)*a(2)*a(3)-a(1)*a(2)*a(4)-2*a(2)^5*a(3)^2+2*a(2)^5*a(3)*a(4)-1//2*a(2)^5*a(4)^2+a(2)*a(5))*x(2)*x(3)^4*x(4)+x(1)*x(2)^3+(-a(1)*a(2))*x(2)^2*x(3)*x(4)+(-1//2*a(1)^2*a(2)+a(2)^3*a(3)-1//2*a(2)^3*a(4))*x(1)*x(3)^2*x(4)+(a(2)^2)*x(4)^2
-    Q[4,2]=(-1//2*a(1)^9*a(3)-a(1)^7*a(2)^2*a(3)^2+1//2*a(1)^7*a(2)^2*a(3)*a(4)+1//8*a(1)^6*a(3)^2+17//4*a(1)^6*a(3)*a(4)+1//4*a(1)^5*a(2)^4*a(3)^3-1//4*a(1)^5*a(2)^4*a(3)^2*a(4)+1//16*a(1)^5*a(2)^4*a(3)*a(4)^2+4*a(1)^4*a(2)^2*a(3)^3+17//8*a(1)^4*a(2)^2*a(3)^2*a(4)-33//16*a(1)^4*a(2)^2*a(3)*a(4)^2+a(1)^3*a(2)^6*a(3)^4-3//2*a(1)^3*a(2)^6*a(3)^3*a(4)+3//4*a(1)^3*a(2)^6*a(3)^2*a(4)^2-1//8*a(1)^3*a(2)^6*a(3)*a(4)^3-a(1)^3*a(3)^3-15//2*a(1)^3*a(3)*a(4)^2+13//2*a(1)^2*a(2)^4*a(3)^4-11*a(1)^2*a(2)^4*a(3)^3*a(4)+49//8*a(1)^2*a(2)^4*a(3)^2*a(4)^2-9//8*a(1)^2*a(2)^4*a(3)*a(4)^3+1//2*a(1)^2*a(3)*a(4)*a(5)+a(1)*a(2)^8*a(3)^5-2*a(1)*a(2)^8*a(3)^4*a(4)+3//2*a(1)*a(2)^8*a(3)^3*a(4)^2-1//2*a(1)*a(2)^8*a(3)^2*a(4)^3+1//16*a(1)*a(2)^8*a(3)*a(4)^4-2*a(1)*a(2)^2*a(3)^4-7*a(1)*a(2)^2*a(3)^3*a(4)+7*a(1)*a(2)^2*a(3)^2*a(4)^2-3//2*a(1)*a(2)^2*a(3)*a(4)^3-2*a(2)^6*a(3)^5+7//2*a(2)^6*a(3)^4*a(4)-9//4*a(2)^6*a(3)^3*a(4)^2+5//8*a(2)^6*a(3)^2*a(4)^3-1//16*a(2)^6*a(3)*a(4)^4+a(2)^2*a(3)^2*a(4)*a(5)-1//2*a(2)^2*a(3)*a(4)^2*a(5)+2*a(3)^3*a(4)-2*a(3)^2*a(4)^2+a(3)*a(4)^3)*x(3)^12+(1//4*a(1)^9+1//2*a(1)^7*a(2)^2*a(3)-1//4*a(1)^7*a(2)^2*a(4)+1//2*a(1)^6*a(3)-11//4*a(1)^6*a(4)-1//4*a(1)^5*a(2)^4*a(3)^2+1//4*a(1)^5*a(2)^4*a(3)*a(4)-1//16*a(1)^5*a(2)^4*a(4)^2-7//4*a(1)^4*a(2)^2*a(3)^2-7//4*a(1)^4*a(2)^2*a(3)*a(4)+21//16*a(1)^4*a(2)^2*a(4)^2-a(1)^3*a(2)^6*a(3)^3+3//2*a(1)^3*a(2)^6*a(3)^2*a(4)-3//4*a(1)^3*a(2)^6*a(3)*a(4)^2+1//8*a(1)^3*a(2)^6*a(4)^3+1//2*a(1)^3*a(3)^2-4*a(1)^3*a(3)*a(4)+15//2*a(1)^3*a(4)^2-3*a(1)^2*a(2)^4*a(3)^3+9//2*a(1)^2*a(2)^4*a(3)^2*a(4)-9//4*a(1)^2*a(2)^4*a(3)*a(4)^2+3//8*a(1)^2*a(2)^4*a(4)^3+1//2*a(1)^2*a(4)*a(5)-a(1)*a(2)^8*a(3)^4+2*a(1)*a(2)^8*a(3)^3*a(4)-3//2*a(1)*a(2)^8*a(3)^2*a(4)^2+1//2*a(1)*a(2)^8*a(3)*a(4)^3-1//16*a(1)*a(2)^8*a(4)^4-3*a(1)*a(2)^2*a(3)^3+21//2*a(1)*a(2)^2*a(3)^2*a(4)-15//2*a(1)*a(2)^2*a(3)*a(4)^2+3//2*a(1)*a(2)^2*a(4)^3+a(2)^6*a(3)^4-2*a(2)^6*a(3)^3*a(4)+3//2*a(2)^6*a(3)^2*a(4)^2-1//2*a(2)^6*a(3)*a(4)^3+1//16*a(2)^6*a(4)^4-a(2)^2*a(3)*a(4)*a(5)+1//2*a(2)^2*a(4)^2*a(5)+a(3)^3-3*a(3)^2*a(4)+3*a(3)*a(4)^2-a(4)^3)*x(2)*x(3)^9+(-5//8*a(1)^6-1//4*a(1)^4*a(2)^2*a(3)+1//8*a(1)^4*a(2)^2*a(4)+4*a(1)^3*a(4)+1//2*a(1)^2*a(2)^4*a(3)^2-1//2*a(1)^2*a(2)^4*a(3)*a(4)+1//8*a(1)^2*a(2)^4*a(4)^2+4*a(1)*a(2)^2*a(3)^2-3*a(1)*a(2)^2*a(3)*a(4)+1//2*a(1)*a(2)^2*a(4)^2+a(2)^6*a(3)^3-3//2*a(2)^6*a(3)^2*a(4)+3//4*a(2)^6*a(3)*a(4)^2-1//8*a(2)^6*a(4)^3-a(3)^2+2*a(3)*a(4)-a(4)^2)*x(2)^2*x(3)^6+(1//4*a(1)^7+1//2*a(1)^5*a(2)^2*a(3)-1//4*a(1)^5*a(2)^2*a(4)-3//2*a(1)^4*a(4)-2*a(1)^2*a(2)^2*a(3)^2-1//2*a(1)^2*a(2)^2*a(3)*a(4)+3//4*a(1)^2*a(2)^2*a(4)^2-4*a(2)^4*a(3)^3+7*a(2)^4*a(3)^2*a(4)-4*a(2)^4*a(3)*a(4)^2+3//4*a(2)^4*a(4)^3-a(4)*a(5))*x(1)*x(3)^7+(1//2*a(1)^3+a(1)*a(2)^2*a(3)-1//2*a(1)*a(2)^2*a(4)+a(3)-a(4))*x(2)^3*x(3)^3+(1//2*a(1)^2*a(2)*a(3)+a(2)^3*a(3)^2-1//2*a(2)^3*a(3)*a(4))*x(3)^5*x(4)-x(2)^4+(1//2*a(1)^2*a(2)-a(2)^3*a(3)+1//2*a(2)^3*a(4))*x(2)*x(3)^2*x(4)+(-a(2))*x(1)*x(4)
-    Q[4,3]=(-7//8*a(1)^7*a(3)-1//4*a(1)^5*a(2)^2*a(3)^2+1//8*a(1)^5*a(2)^2*a(3)*a(4)+1//4*a(1)^4*a(3)^2+11//2*a(1)^4*a(3)*a(4)+1//2*a(1)^3*a(2)^4*a(3)^3-1//2*a(1)^3*a(2)^4*a(3)^2*a(4)+1//8*a(1)^3*a(2)^4*a(3)*a(4)^2+7*a(1)^2*a(2)^2*a(3)^3-6*a(1)^2*a(2)^2*a(3)^2*a(4)+5//4*a(1)^2*a(2)^2*a(3)*a(4)^2+a(1)*a(2)^6*a(3)^4-3//2*a(1)*a(2)^6*a(3)^3*a(4)+3//4*a(1)*a(2)^6*a(3)^2*a(4)^2-1//8*a(1)*a(2)^6*a(3)*a(4)^3-2*a(1)*a(3)^3-a(1)*a(3)*a(4)^2-a(2)^4*a(3)^4+a(2)^4*a(3)^3*a(4)-1//4*a(2)^4*a(3)^2*a(4)^2+a(3)*a(4)*a(5))*x(3)^10+(5//8*a(1)^7+1//4*a(1)^5*a(2)^2*a(3)-1//8*a(1)^5*a(2)^2*a(4)-4*a(1)^4*a(4)-1//2*a(1)^3*a(2)^4*a(3)^2+1//2*a(1)^3*a(2)^4*a(3)*a(4)-1//8*a(1)^3*a(2)^4*a(4)^2-4*a(1)^2*a(2)^2*a(3)^2+3*a(1)^2*a(2)^2*a(3)*a(4)-1//2*a(1)^2*a(2)^2*a(4)^2-a(1)*a(2)^6*a(3)^3+3//2*a(1)*a(2)^6*a(3)^2*a(4)-3//4*a(1)*a(2)^6*a(3)*a(4)^2+1//8*a(1)*a(2)^6*a(4)^3+a(1)*a(3)^2-a(1)*a(3)*a(4)+a(1)*a(4)^2-a(4)*a(5))*x(2)*x(3)^7+(-1//4*a(1)^4+a(1)*a(4)+a(2)^4*a(3)^2-a(2)^4*a(3)*a(4)+1//4*a(2)^4*a(4)^2)*x(2)^2*x(3)^4+(1//4*a(1)^5-1//2*a(1)^2*a(3)-3//2*a(1)^2*a(4)-2*a(2)^2*a(3)^2+5//2*a(2)^2*a(3)*a(4)-3//4*a(2)^2*a(4)^2)*x(1)*x(3)^5+(a(1))*x(2)^3*x(3)+(-1//2*a(1)^2-a(2)^2*a(3)+1//2*a(2)^2*a(4))*x(1)*x(2)*x(3)^2+(2*a(1)*a(2)^3*a(3)-a(1)*a(2)^3*a(4)-a(2)*a(3)+a(2)*a(4))*x(3)^3*x(4)+x(1)^2+(-a(2))*x(2)*x(4)
-    Q[5,1]=(1//32*a(1)^12+15//16*a(1)^10*a(2)^2*a(3)-15//32*a(1)^10*a(2)^2*a(4)-1//16*a(1)^9*a(3)+17//16*a(1)^9*a(4)+a(1)^8*a(2)^4*a(3)^2-a(1)^8*a(2)^4*a(3)*a(4)+1//4*a(1)^8*a(2)^4*a(4)^2-7//8*a(1)^8*a(5)+1//2*a(1)^7*a(2)^2*a(3)^2-57//8*a(1)^7*a(2)^2*a(3)*a(4)+55//16*a(1)^7*a(2)^2*a(4)^2-1//2*a(1)^6*a(2)^6*a(3)^3+3//4*a(1)^6*a(2)^6*a(3)^2*a(4)-3//8*a(1)^6*a(2)^6*a(3)*a(4)^2+1//16*a(1)^6*a(2)^6*a(4)^3-1//4*a(1)^6*a(2)^2*a(3)*a(5)+1//8*a(1)^6*a(2)^2*a(4)*a(5)+a(1)^6*a(3)*a(4)-9*a(1)^6*a(4)^2-7*a(1)^5*a(2)^4*a(3)^3+15//4*a(1)^5*a(2)^4*a(3)^2*a(4)+3//2*a(1)^5*a(2)^4*a(3)*a(4)^2-13//16*a(1)^5*a(2)^4*a(4)^3+1//4*a(1)^5*a(3)*a(5)+11//2*a(1)^5*a(4)*a(5)-3//2*a(1)^4*a(2)^8*a(3)^4+3*a(1)^4*a(2)^8*a(3)^3*a(4)-9//4*a(1)^4*a(2)^8*a(3)^2*a(4)^2+3//4*a(1)^4*a(2)^8*a(3)*a(4)^3-3//32*a(1)^4*a(2)^8*a(4)^4+1//2*a(1)^4*a(2)^4*a(3)^2*a(5)-1//2*a(1)^4*a(2)^4*a(3)*a(4)*a(5)+1//8*a(1)^4*a(2)^4*a(4)^2*a(5)+2*a(1)^4*a(2)^2*a(3)^3-67//4*a(1)^4*a(2)^2*a(3)^2*a(4)+87//4*a(1)^4*a(2)^2*a(3)*a(4)^2-111//16*a(1)^4*a(2)^2*a(4)^3-6*a(1)^3*a(2)^6*a(3)^4+23//2*a(1)^3*a(2)^6*a(3)^3*a(4)-33//4*a(1)^3*a(2)^6*a(3)^2*a(4)^2+21//8*a(1)^3*a(2)^6*a(3)*a(4)^3-5//16*a(1)^3*a(2)^6*a(4)^4+7*a(1)^3*a(2)^2*a(3)^2*a(5)-7*a(1)^3*a(2)^2*a(3)*a(4)*a(5)+7//4*a(1)^3*a(2)^2*a(4)^2*a(5)+3*a(1)^3*a(3)^2*a(4)-6*a(1)^3*a(3)*a(4)^2+17//2*a(1)^3*a(4)^3-a(1)^2*a(2)^10*a(3)^5+5//2*a(1)^2*a(2)^10*a(3)^4*a(4)-5//2*a(1)^2*a(2)^10*a(3)^3*a(4)^2+5//4*a(1)^2*a(2)^10*a(3)^2*a(4)^3-5//16*a(1)^2*a(2)^10*a(3)*a(4)^4+1//32*a(1)^2*a(2)^10*a(4)^5+a(1)^2*a(2)^6*a(3)^3*a(5)-3//2*a(1)^2*a(2)^6*a(3)^2*a(4)*a(5)+3//4*a(1)^2*a(2)^6*a(3)*a(4)^2*a(5)-1//8*a(1)^2*a(2)^6*a(4)^3*a(5)-5*a(1)^2*a(2)^4*a(3)^4+19*a(1)^2*a(2)^4*a(3)^3*a(4)-35//2*a(1)^2*a(2)^4*a(3)^2*a(4)^2+23//4*a(1)^2*a(2)^4*a(3)*a(4)^3-9//16*a(1)^2*a(2)^4*a(4)^4-2*a(1)^2*a(3)^2*a(5)-3*a(1)^2*a(4)^2*a(5)+a(1)*a(2)^8*a(3)^5-2*a(1)*a(2)^8*a(3)^4*a(4)+3//2*a(1)*a(2)^8*a(3)^3*a(4)^2-1//2*a(1)*a(2)^8*a(3)^2*a(4)^3+1//16*a(1)*a(2)^8*a(3)*a(4)^4-a(1)*a(2)^4*a(3)^3*a(5)+3//4*a(1)*a(2)^4*a(3)*a(4)^2*a(5)-1//4*a(1)*a(2)^4*a(4)^3*a(5)+2*a(1)*a(2)^2*a(3)^4-12*a(1)*a(2)^2*a(3)^3*a(4)+41//2*a(1)*a(2)^2*a(3)^2*a(4)^2-13*a(1)*a(2)^2*a(3)*a(4)^3+11//4*a(1)*a(2)^2*a(4)^4+a(1)*a(4)*a(5)^2+a(2)^6*a(3)^4*a(4)-2*a(2)^6*a(3)^3*a(4)^2+3//2*a(2)^6*a(3)^2*a(4)^3-1//2*a(2)^6*a(3)*a(4)^4+1//16*a(2)^6*a(4)^5-a(2)^2*a(3)^2*a(4)*a(5)+a(2)^2*a(3)*a(4)^2*a(5)-1//4*a(2)^2*a(4)^3*a(5)+2*a(3)^3*a(4)-4*a(3)^2*a(4)^2+3*a(3)*a(4)^3-a(4)^4)*x(3)^12+(-3//16*a(1)^9-1//2*a(1)^7*a(2)^2*a(3)+1//4*a(1)^7*a(2)^2*a(4)+1//4*a(1)^6*a(3)+3//2*a(1)^6*a(4)+1//4*a(1)^5*a(5)+3//2*a(1)^4*a(2)^2*a(3)^2+2*a(1)^4*a(2)^2*a(3)*a(4)-11//8*a(1)^4*a(2)^2*a(4)^2+a(1)^3*a(2)^6*a(3)^3-3//2*a(1)^3*a(2)^6*a(3)^2*a(4)+3//4*a(1)^3*a(2)^6*a(3)*a(4)^2-1//8*a(1)^3*a(2)^6*a(4)^3-1//2*a(1)^3*a(3)^2-a(1)^3*a(3)*a(4)-2*a(1)^3*a(4)^2+3*a(1)^2*a(2)^4*a(3)^3-5//2*a(1)^2*a(2)^4*a(3)^2*a(4)+1//4*a(1)^2*a(2)^4*a(3)*a(4)^2+1//8*a(1)^2*a(2)^4*a(4)^3-2*a(1)^2*a(4)*a(5)+a(1)*a(2)^8*a(3)^4-2*a(1)*a(2)^8*a(3)^3*a(4)+3//2*a(1)*a(2)^8*a(3)^2*a(4)^2-1//2*a(1)*a(2)^8*a(3)*a(4)^3+1//16*a(1)*a(2)^8*a(4)^4-a(1)*a(2)^4*a(3)^2*a(5)+a(1)*a(2)^4*a(3)*a(4)*a(5)-1//4*a(1)*a(2)^4*a(4)^2*a(5)-4*a(1)*a(2)^2*a(3)^3+3//2*a(1)*a(2)^2*a(3)^2*a(4)+3//4*a(1)*a(2)^2*a(3)*a(4)^2-1//4*a(1)*a(2)^2*a(4)^3+a(3)^3)*x(2)*x(3)^9+(1//4*a(1)^6-2*a(1)^3*a(4)-3*a(1)*a(2)^2*a(3)^2+2*a(1)*a(2)^2*a(3)*a(4)-1//4*a(1)*a(2)^2*a(4)^2+a(3)^2)*x(2)^2*x(3)^6+(5//8*a(1)^7+1//4*a(1)^5*a(2)^2*a(3)-1//8*a(1)^5*a(2)^2*a(4)+1//4*a(1)^4*a(3)-4*a(1)^4*a(4)-1//2*a(1)^3*a(2)^4*a(3)^2+1//2*a(1)^3*a(2)^4*a(3)*a(4)-1//8*a(1)^3*a(2)^4*a(4)^2-1//2*a(1)^3*a(5)-5*a(1)^2*a(2)^2*a(3)^2+7//2*a(1)^2*a(2)^2*a(3)*a(4)-1//2*a(1)^2*a(2)^2*a(4)^2-a(1)*a(2)^6*a(3)^3+3//2*a(1)*a(2)^6*a(3)^2*a(4)-3//4*a(1)*a(2)^6*a(3)*a(4)^2+1//8*a(1)*a(2)^6*a(4)^3+a(1)*a(2)^2*a(3)*a(5)-1//2*a(1)*a(2)^2*a(4)*a(5)+2*a(1)*a(3)^2+a(1)*a(4)^2+a(2)^4*a(3)^3-a(2)^4*a(3)^2*a(4)+1//4*a(2)^4*a(3)*a(4)^2-a(3)*a(5))*x(1)*x(3)^7+(-1//2*a(1)^3-a(1)*a(2)^2*a(3)+1//2*a(1)*a(2)^2*a(4)+a(3))*x(2)^3*x(3)^3+(-1//4*a(1)^4+a(1)*a(3)+a(1)*a(4)+a(2)^4*a(3)^2-a(2)^4*a(3)*a(4)+1//4*a(2)^4*a(4)^2-a(5))*x(1)*x(2)*x(3)^4+(-a(1)^3*a(2)^3*a(3)+1//2*a(1)^3*a(2)^3*a(4)-2*a(1)^2*a(2)*a(4)-2*a(1)*a(2)^5*a(3)^2+2*a(1)*a(2)^5*a(3)*a(4)-1//2*a(1)*a(2)^5*a(4)^2+a(1)*a(2)*a(5))*x(3)^5*x(4)+x(2)^4+(a(1))*x(1)*x(2)^2*x(3)+(a(1)^2)*x(1)^2*x(3)^2+(-a(2))*x(1)*x(4)
-    Q[5,2]=(1//2*a(1)^10+a(1)^8*a(2)^2*a(3)-1//2*a(1)^8*a(2)^2*a(4)-1//8*a(1)^7*a(3)-17//4*a(1)^7*a(4)-1//4*a(1)^6*a(2)^4*a(3)^2+1//4*a(1)^6*a(2)^4*a(3)*a(4)-1//16*a(1)^6*a(2)^4*a(4)^2-4*a(1)^5*a(2)^2*a(3)^2-17//8*a(1)^5*a(2)^2*a(3)*a(4)+33//16*a(1)^5*a(2)^2*a(4)^2-a(1)^4*a(2)^6*a(3)^3+3//2*a(1)^4*a(2)^6*a(3)^2*a(4)-3//4*a(1)^4*a(2)^6*a(3)*a(4)^2+1//8*a(1)^4*a(2)^6*a(4)^3+a(1)^4*a(3)^2+15//2*a(1)^4*a(4)^2-13//2*a(1)^3*a(2)^4*a(3)^3+11*a(1)^3*a(2)^4*a(3)^2*a(4)-49//8*a(1)^3*a(2)^4*a(3)*a(4)^2+9//8*a(1)^3*a(2)^4*a(4)^3-1//2*a(1)^3*a(4)*a(5)-a(1)^2*a(2)^8*a(3)^4+2*a(1)^2*a(2)^8*a(3)^3*a(4)-3//2*a(1)^2*a(2)^8*a(3)^2*a(4)^2+1//2*a(1)^2*a(2)^8*a(3)*a(4)^3-1//16*a(1)^2*a(2)^8*a(4)^4+2*a(1)^2*a(2)^2*a(3)^3+7*a(1)^2*a(2)^2*a(3)^2*a(4)-7*a(1)^2*a(2)^2*a(3)*a(4)^2+3//2*a(1)^2*a(2)^2*a(4)^3+2*a(1)*a(2)^6*a(3)^4-7//2*a(1)*a(2)^6*a(3)^3*a(4)+9//4*a(1)*a(2)^6*a(3)^2*a(4)^2-5//8*a(1)*a(2)^6*a(3)*a(4)^3+1//16*a(1)*a(2)^6*a(4)^4-a(1)*a(2)^2*a(3)*a(4)*a(5)+1//2*a(1)*a(2)^2*a(4)^2*a(5)-2*a(1)*a(3)^2*a(4)+2*a(1)*a(3)*a(4)^2-a(1)*a(4)^3)*x(3)^10+(-3//8*a(1)^7-1//4*a(1)^5*a(2)^2*a(3)+1//8*a(1)^5*a(2)^2*a(4)+5//2*a(1)^4*a(4)+1//2*a(1)^3*a(2)^4*a(3)^2-1//2*a(1)^3*a(2)^4*a(3)*a(4)+1//8*a(1)^3*a(2)^4*a(4)^2+3*a(1)^2*a(2)^2*a(3)^2-a(1)^2*a(2)^2*a(3)*a(4)-1//4*a(1)^2*a(2)^2*a(4)^2+a(1)*a(2)^6*a(3)^3-3//2*a(1)*a(2)^6*a(3)^2*a(4)+3//4*a(1)*a(2)^6*a(3)*a(4)^2-1//8*a(1)*a(2)^6*a(4)^3-a(1)*a(3)^2+a(1)*a(3)*a(4)-a(1)*a(4)^2)*x(2)*x(3)^7+(-a(1)*a(4))*x(2)^2*x(3)^4+(-1//4*a(1)^5+1//2*a(1)^2*a(3)+3//2*a(1)^2*a(4)+2*a(2)^2*a(3)^2-5//2*a(2)^2*a(3)*a(4)+3//4*a(2)^2*a(4)^2)*x(1)*x(3)^5+(-a(1))*x(2)^3*x(3)+(-1//2*a(1)^2+a(2)^2*a(3)-1//2*a(2)^2*a(4))*x(1)*x(2)*x(3)^2+(-1//2*a(1)^3*a(2)-a(1)*a(2)^3*a(3)+1//2*a(1)*a(2)^3*a(4))*x(3)^3*x(4)+x(1)^2
-    Q[5,3]=(7//8*a(1)^8+1//4*a(1)^6*a(2)^2*a(3)-1//8*a(1)^6*a(2)^2*a(4)-1//4*a(1)^5*a(3)-11//2*a(1)^5*a(4)-1//2*a(1)^4*a(2)^4*a(3)^2+1//2*a(1)^4*a(2)^4*a(3)*a(4)-1//8*a(1)^4*a(2)^4*a(4)^2-7*a(1)^3*a(2)^2*a(3)^2+6*a(1)^3*a(2)^2*a(3)*a(4)-5//4*a(1)^3*a(2)^2*a(4)^2-a(1)^2*a(2)^6*a(3)^3+3//2*a(1)^2*a(2)^6*a(3)^2*a(4)-3//4*a(1)^2*a(2)^6*a(3)*a(4)^2+1//8*a(1)^2*a(2)^6*a(4)^3+2*a(1)^2*a(3)^2+a(1)^2*a(4)^2+a(1)*a(2)^4*a(3)^3-a(1)*a(2)^4*a(3)^2*a(4)+1//4*a(1)*a(2)^4*a(3)*a(4)^2-a(1)*a(4)*a(5))*x(3)^8+(-1//4*a(1)^5+2*a(1)^2*a(4)+a(1)*a(2)^4*a(3)^2-a(1)*a(2)^4*a(3)*a(4)+1//4*a(1)*a(2)^4*a(4)^2)*x(2)*x(3)^5+(1//2*a(1)^3-a(1)*a(2)^2*a(3)+1//2*a(1)*a(2)^2*a(4)+a(3)-a(4))*x(1)*x(3)^3+x(1)*x(2)+(-a(1)*a(2))*x(3)*x(4)
-    Q[6,1]=(-1//4*a(1)^10-1//2*a(1)^8*a(2)^2*a(3)+1//4*a(1)^8*a(2)^2*a(4)+3//4*a(1)^7*a(3)+11//4*a(1)^7*a(4)+1//4*a(1)^6*a(2)^4*a(3)^2-1//4*a(1)^6*a(2)^4*a(3)*a(4)+1//16*a(1)^6*a(2)^4*a(4)^2-1//4*a(1)^6*a(5)+9//4*a(1)^5*a(2)^2*a(3)^2+3//2*a(1)^5*a(2)^2*a(3)*a(4)-21//16*a(1)^5*a(2)^2*a(4)^2+a(1)^4*a(2)^6*a(3)^3-3//2*a(1)^4*a(2)^6*a(3)^2*a(4)+3//4*a(1)^4*a(2)^6*a(3)*a(4)^2-1//8*a(1)^4*a(2)^6*a(4)^3-3//4*a(1)^4*a(3)^2-4*a(1)^4*a(3)*a(4)-15//2*a(1)^4*a(4)^2+2*a(1)^3*a(2)^4*a(3)^3-7//2*a(1)^3*a(2)^4*a(3)^2*a(4)+2*a(1)^3*a(2)^4*a(3)*a(4)^2-3//8*a(1)^3*a(2)^4*a(4)^3+a(1)^3*a(4)*a(5)+a(1)^2*a(2)^8*a(3)^4-2*a(1)^2*a(2)^8*a(3)^3*a(4)+3//2*a(1)^2*a(2)^8*a(3)^2*a(4)^2-1//2*a(1)^2*a(2)^8*a(3)*a(4)^3+1//16*a(1)^2*a(2)^8*a(4)^4-7*a(1)^2*a(2)^2*a(3)^3-7//2*a(1)^2*a(2)^2*a(3)^2*a(4)+13//2*a(1)^2*a(2)^2*a(3)*a(4)^2-3//2*a(1)^2*a(2)^2*a(4)^3-3*a(1)*a(2)^6*a(3)^4+5*a(1)*a(2)^6*a(3)^3*a(4)-3*a(1)*a(2)^6*a(3)^2*a(4)^2+3//4*a(1)*a(2)^6*a(3)*a(4)^3-1//16*a(1)*a(2)^6*a(4)^4+3*a(1)*a(2)^2*a(3)^2*a(5)-2*a(1)*a(2)^2*a(3)*a(4)*a(5)+1//4*a(1)*a(2)^2*a(4)^2*a(5)+2*a(1)*a(3)^3+2*a(1)*a(3)^2*a(4)-a(1)*a(3)*a(4)^2+a(1)*a(4)^3+a(2)^4*a(3)^4-a(2)^4*a(3)^3*a(4)+1//4*a(2)^4*a(3)^2*a(4)^2-a(3)^2*a(5))*x(3)^10+(-1//4*a(1)^4-a(1)^2*a(2)^2*a(3)+1//2*a(1)^2*a(2)^2*a(4)-a(2)^4*a(3)^2+a(2)^4*a(3)*a(4)-1//4*a(2)^4*a(4)^2+a(5))*x(2)^2*x(3)^4+(a(1)^2*a(3)-a(1)*a(5))*x(1)*x(3)^5+(-1//2*a(1)^3*a(2)+a(1)*a(2)^3*a(3)-1//2*a(1)*a(2)^3*a(4)-a(2)*a(3))*x(3)^3*x(4)+x(1)^2+(a(2))*x(2)*x(4)
-    Q[6,2]=(1//4*a(1)^8+1//2*a(1)^6*a(2)^2*a(3)-1//4*a(1)^6*a(2)^2*a(4)-1//4*a(1)^5*a(3)-3//2*a(1)^5*a(4)-2*a(1)^3*a(2)^2*a(3)^2-1//2*a(1)^3*a(2)^2*a(3)*a(4)+3//4*a(1)^3*a(2)^2*a(4)^2+1//2*a(1)^2*a(3)^2+3//2*a(1)^2*a(3)*a(4)-4*a(1)*a(2)^4*a(3)^3+7*a(1)*a(2)^4*a(3)^2*a(4)-4*a(1)*a(2)^4*a(3)*a(4)^2+3//4*a(1)*a(2)^4*a(4)^3-a(1)*a(4)*a(5)+2*a(2)^2*a(3)^3-5//2*a(2)^2*a(3)^2*a(4)+3//4*a(2)^2*a(3)*a(4)^2)*x(3)^8+(1//4*a(1)^5-3//2*a(1)^2*a(4)-a(2)^2*a(3)^2+2*a(2)^2*a(3)*a(4)-3//4*a(2)^2*a(4)^2)*x(2)*x(3)^5+(-1//2*a(1)^2-a(2)^2*a(3)+1//2*a(2)^2*a(4))*x(2)^2*x(3)^2+(a(3))*x(1)*x(3)^3-x(1)*x(2)+(-a(1)*a(2))*x(3)*x(4)
-    Q[6,3]=(1//4*a(1)^6-3//2*a(1)^3*a(4)-3*a(1)*a(2)^2*a(3)^2+3*a(1)*a(2)^2*a(3)*a(4)-3//4*a(1)*a(2)^2*a(4)^2+a(3)^2-a(3)*a(4))*x(3)^6+(a(4))*x(2)*x(3)^3-x(2)^2+(a(1))*x(1)*x(3)
-
-    return Q
-end
-
-S11_W13(xs=xs,us=us) = @with_xu 3 ℤ[a[]] begin
-    # compatibility with notation below
-    A = a
-    lookup = Dict(1=>x,2=>y,3=>z,4=>u,5=>v,6=>w)
-    a(i) = A[i]
-    x(i) = lookup[i]
-
-    # from https://nms.kcl.ac.uk/andreas.recknagel/oeq-page/defectslistforweb.txt
-    Q = zeros(R,8,8)
-    Q[1,5]=x(1)*x(6)-x(4);
-    Q[1,6]=-x(2)*x(6)^2+x(1)^2+x(2)*x(3);
-    Q[1,7]=-x(2)+x(5);
-    Q[2,5]=-x(6)^2-x(3);
-    Q[2,6]=-x(1)*x(6)-x(4);
-    Q[2,8]=-x(2)+x(5);
-    Q[3,5]=x(2)^3+x(2)^2*x(5)+x(2)*x(5)^2+x(5)^3-x(3)*x(6)^2;
-    Q[3,6]=-x(1)*x(6)^3-x(4)*x(6)^2;
-    Q[3,7]=-x(1)*x(6)-x(4);
-    Q[3,8]=x(5)*x(6)^2-x(1)^2-x(2)*x(3);
-    Q[4,6]=x(6)^4+x(2)^3+x(2)^2*x(5)+x(2)*x(5)^2+x(5)^3;
-    Q[4,7]=x(6)^2+x(3);
-    Q[4,8]=x(1)*x(6)-x(4);
-    Q[5,1]=-x(1)*x(6)-x(4);
-    Q[5,2]=x(5)*x(6)^2-x(1)^2-x(2)*x(3);
-    Q[5,3]=x(2)-x(5);
-    Q[6,1]=x(6)^2+x(3);
-    Q[6,2]=x(1)*x(6)-x(4);
-    Q[6,4]=x(2)-x(5);
-    Q[7,1]=-x(6)^4-x(2)^3-x(2)^2*x(5)-x(2)*x(5)^2-x(5)^3;
-    Q[7,2]=-x(1)*x(6)^3+x(4)*x(6)^2;
-    Q[7,3]=x(1)*x(6)-x(4);
-    Q[7,4]=-x(2)*x(6)^2+x(1)^2+x(2)*x(3);
-    Q[8,2]=-x(2)^3-x(2)^2*x(5)-x(2)*x(5)^2-x(5)^3+x(3)*x(6)^2;
-    Q[8,3]=-x(6)^2-x(3);
-    Q[8,4]=-x(1)*x(6)-x(4);
-
-    return Q
-end
-
-E13_Z11(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
-    # compatibility with notation below
-    A = a
-    lookup = Dict(1=>x,2=>y,3=>u,4=>v)
-    a(i) = A[i]
-    x(i) = lookup[i]
-
-    # from https://nms.kcl.ac.uk/andreas.recknagel/oeq-page/defectslistforweb.txt
-    Q = zeros(R,6,6)
-    Q[1,4]=-x(1)^2-x(3)*a(2);
-    Q[1,5]=-x(1)*x(4)*a(3)-x(1)*x(4)*a(4)+x(2);
-    Q[1,6]=-x(4)*a(4);
-    Q[2,4]=x(1)*x(4)*a(3)-x(1)*x(4)*a(5)+x(2);
-    Q[2,5]=x(4)^2*a(1)^2*a(4)^2+x(4)^2*a(1)*a(3)*a(4)+x(4)^2*a(1)*a(4)^2+x(4)^2*a(1)*a(4)*a(5)-x(1)^3*a(1)+x(4)^2*a(3)^2+x(4)^2*a(3)*a(4)-x(4)^2*a(3)*a(5)+x(4)^2*a(5)^2+x(1)*x(3)*a(1)*a(2)-x(1)*x(3)*a(1)*a(6)+x(1)^3-x(4)^2*a(7);
-    Q[2,6]=x(1)^2+x(3)*a(6);
-    Q[3,4]=-x(1)^3*a(1)-x(1)^3-x(4)^2*a(7);
-    Q[3,5]=-x(1)^2*x(4)*a(1)^2*a(4)+2*x(3)*x(4)*a(1)^2*a(4)*a(2)-x(1)^2*x(4)*a(1)*a(3)-x(1)^2*x(4)*a(1)*a(4)-x(1)^2*x(4)*a(1)*a(5)+x(3)*x(4)*a(1)*a(3)*a(2)+2*x(3)*x(4)*a(1)*a(4)*a(2)+x(3)*x(4)*a(1)*a(5)*a(2)-x(3)*x(4)*a(1)*a(4)*a(6)-x(1)^2*x(4)*a(3)+x(1)^2*x(4)*a(5)+x(3)*x(4)*a(3)*a(2)-x(3)*x(4)*a(4)*a(6)-x(3)*x(4)*a(5)*a(6)+x(1)*x(2);
-    Q[3,6]=x(1)*x(4)*a(5)+x(2);
-    Q[4,1]=-x(1)*x(4)^3*a(1)^2*a(4)^2*a(5)-x(1)^4*x(4)*a(1)^2*a(4)-x(1)*x(4)^3*a(1)*a(3)*a(4)*a(5)-x(1)*x(4)^3*a(1)*a(4)^2*a(5)-x(1)*x(4)^3*a(1)*a(4)*a(5)^2+2*x(1)^2*x(3)*x(4)*a(1)^2*a(4)*a(2)-x(1)^2*x(3)*x(4)*a(1)^2*a(4)*a(6)+2*x(3)^2*x(4)*a(1)^2*a(4)*a(2)*a(6)-x(1)^4*x(4)*a(1)*a(3)-x(1)^4*x(4)*a(1)*a(4)-x(2)*x(4)^2*a(1)^2*a(4)^2-x(1)*x(4)^3*a(3)^2*a(5)-x(1)*x(4)^3*a(3)*a(4)*a(5)+x(1)*x(4)^3*a(3)*a(5)^2-x(1)*x(4)^3*a(5)^3+x(1)^2*x(3)*x(4)*a(1)*a(3)*a(2)+2*x(1)^2*x(3)*x(4)*a(1)*a(4)*a(2)-x(1)^2*x(3)*x(4)*a(1)*a(3)*a(6)-2*x(1)^2*x(3)*x(4)*a(1)*a(4)*a(6)+x(3)^2*x(4)*a(1)*a(3)*a(2)*a(6)+2*x(3)^2*x(4)*a(1)*a(4)*a(2)*a(6)+x(3)^2*x(4)*a(1)*a(5)*a(2)*a(6)-x(3)^2*x(4)*a(1)*a(4)*a(6)^2-x(1)^4*x(4)*a(3)-x(2)*x(4)^2*a(1)*a(3)*a(4)-x(2)*x(4)^2*a(1)*a(4)^2-x(2)*x(4)^2*a(1)*a(4)*a(5)+x(1)^2*x(3)*x(4)*a(3)*a(2)-x(1)^2*x(3)*x(4)*a(3)*a(6)-x(1)^2*x(3)*x(4)*a(4)*a(6)+x(3)^2*x(4)*a(3)*a(2)*a(6)-x(3)^2*x(4)*a(4)*a(6)^2-x(3)^2*x(4)*a(5)*a(6)^2+x(1)*x(4)^3*a(5)*a(7)+x(1)^3*x(2)*a(1)-x(2)*x(4)^2*a(3)^2-x(2)*x(4)^2*a(3)*a(4)+x(2)*x(4)^2*a(3)*a(5)-x(2)*x(4)^2*a(5)^2-x(1)*x(2)*x(3)*a(1)*a(2)+x(1)*x(2)*x(3)*a(1)*a(6)+x(1)*x(2)*x(3)*a(6)+x(2)*x(4)^2*a(7);
-    Q[4,2]=-x(1)^2*x(4)^2*a(1)^2*a(4)^2-x(3)*x(4)^2*a(1)^2*a(4)^2*a(2)-x(1)^2*x(4)^2*a(1)*a(3)*a(4)-x(1)^2*x(4)^2*a(1)*a(4)^2-x(1)^2*x(4)^2*a(1)*a(4)*a(5)-x(3)*x(4)^2*a(1)*a(3)*a(4)*a(2)-x(3)*x(4)^2*a(1)*a(4)^2*a(2)-x(3)*x(4)^2*a(1)*a(4)*a(5)*a(2)-x(1)^2*x(4)^2*a(3)*a(4)-x(1)^2*x(4)^2*a(3)*a(5)-x(3)*x(4)^2*a(3)^2*a(2)-x(3)*x(4)^2*a(3)*a(4)*a(2)+x(3)*x(4)^2*a(3)*a(5)*a(2)-x(3)*x(4)^2*a(5)^2*a(2)-x(1)*x(3)^2*a(1)*a(2)^2+x(1)*x(3)^2*a(1)*a(2)*a(6)+x(1)*x(3)^2*a(2)*a(6)+x(3)*x(4)^2*a(2)*a(7)-x(3)*x(4)^2*a(6)*a(7)-x(1)*x(2)*x(4)*a(3)+x(1)*x(2)*x(4)*a(5)+x(2)^2;
-    Q[4,3]=-x(4)^3*a(1)^2*a(4)^3-x(4)^3*a(1)*a(3)*a(4)^2-x(4)^3*a(1)*a(4)^3-x(4)^3*a(1)*a(4)^2*a(5)+x(1)^3*x(4)*a(1)*a(4)-x(4)^3*a(3)^2*a(4)-x(4)^3*a(3)*a(4)^2+x(4)^3*a(3)*a(4)*a(5)-x(4)^3*a(4)*a(5)^2-x(1)*x(3)*x(4)*a(1)*a(4)*a(2)+x(1)*x(3)*x(4)*a(1)*a(4)*a(6)+x(1)^3*x(4)*a(3)+x(1)*x(3)*x(4)*a(3)*a(6)+x(1)*x(3)*x(4)*a(4)*a(6)+x(4)^3*a(4)*a(7)-x(1)^2*x(2)-x(2)*x(3)*a(6);
-    Q[5,1]=-3*x(3)*x(4)^2*a(1)^2*a(4)^2*a(2)-2*x(3)*x(4)^2*a(1)*a(3)*a(4)*a(2)-3*x(3)*x(4)^2*a(1)*a(4)^2*a(2)-2*x(3)*x(4)^2*a(1)*a(4)*a(5)*a(2)+x(3)*x(4)^2*a(1)*a(4)^2*a(6)+x(1)^5*a(1)+x(1)^2*x(4)^2*a(3)*a(5)-x(1)^2*x(4)^2*a(5)^2-x(3)*x(4)^2*a(3)^2*a(2)-2*x(3)*x(4)^2*a(3)*a(4)*a(2)+x(3)*x(4)^2*a(3)*a(5)*a(2)-x(3)*x(4)^2*a(5)^2*a(2)-x(1)*x(3)^2*a(1)*a(2)^2+x(1)^3*x(3)*a(1)*a(6)+x(3)*x(4)^2*a(4)^2*a(6)+x(3)*x(4)^2*a(4)*a(5)*a(6)+x(1)*x(3)^2*a(1)*a(2)*a(6)+x(1)^5+x(1)^3*x(3)*a(6)+x(1)*x(3)^2*a(2)*a(6)+x(1)^2*x(4)^2*a(7)+x(3)*x(4)^2*a(2)*a(7)+x(1)*x(2)*x(4)*a(3)+x(2)^2;
-    Q[5,2]=x(1)^3*x(4)*a(1)*a(4)+x(1)^3*x(4)*a(4)+x(1)^3*x(4)*a(5)+x(1)*x(3)*x(4)*a(5)*a(2)+x(4)^3*a(4)*a(7)+x(1)^2*x(2)+x(2)*x(3)*a(2);
-    Q[5,3]=x(1)*x(4)^2*a(3)*a(4)-x(1)*x(4)^2*a(4)*a(5)-x(1)^4-x(1)^2*x(3)*a(2)-x(1)^2*x(3)*a(6)-x(3)^2*a(2)*a(6)+x(2)*x(4)*a(4);
-    Q[6,1]=-x(1)^3*x(4)^2*a(1)^3*a(4)^2-2*x(1)^3*x(4)^2*a(1)^2*a(4)^2-2*x(1)^3*x(4)^2*a(1)^2*a(4)*a(5)-2*x(1)*x(3)*x(4)^2*a(1)^2*a(3)*a(4)*a(2)+3*x(1)*x(3)*x(4)^2*a(1)^2*a(4)^2*a(2)+2*x(1)*x(3)*x(4)^2*a(1)^2*a(4)*a(5)*a(2)-x(4)^4*a(1)^2*a(4)^2*a(7)+x(1)^6*a(1)^2-x(1)^3*x(4)^2*a(1)*a(3)*a(4)-x(1)^3*x(4)^2*a(1)*a(4)^2+x(1)^3*x(4)^2*a(1)*a(3)*a(5)-2*x(1)^3*x(4)^2*a(1)*a(4)*a(5)-2*x(1)^3*x(4)^2*a(1)*a(5)^2-x(1)^4*x(3)*a(1)^2*a(2)-x(1)*x(3)*x(4)^2*a(1)*a(3)^2*a(2)+3*x(1)*x(3)*x(4)^2*a(1)*a(4)^2*a(2)+4*x(1)*x(3)*x(4)^2*a(1)*a(4)*a(5)*a(2)+x(1)*x(3)*x(4)^2*a(1)*a(5)^2*a(2)+x(1)^4*x(3)*a(1)^2*a(6)+x(1)*x(3)*x(4)^2*a(1)*a(3)*a(4)*a(6)-x(1)*x(3)*x(4)^2*a(1)*a(4)^2*a(6)-x(1)*x(3)*x(4)^2*a(1)*a(4)*a(5)*a(6)-x(4)^4*a(1)*a(3)*a(4)*a(7)-x(4)^4*a(1)*a(4)^2*a(7)-x(4)^4*a(1)*a(4)*a(5)*a(7)+x(1)^2*x(2)*x(4)*a(1)^2*a(4)-x(1)^3*x(4)^2*a(3)*a(4)-x(1)^3*x(4)^2*a(3)*a(5)-x(1)^4*x(3)*a(1)*a(2)-2*x(2)*x(3)*x(4)*a(1)^2*a(4)*a(2)+2*x(1)*x(3)*x(4)^2*a(3)*a(4)*a(2)+x(1)*x(3)*x(4)^2*a(5)^2*a(2)+x(1)^2*x(3)^2*a(1)*a(2)^2+x(1)^4*x(3)*a(1)*a(6)+x(1)*x(3)*x(4)^2*a(3)*a(4)*a(6)-x(1)*x(3)*x(4)^2*a(4)^2*a(6)+x(1)*x(3)*x(4)^2*a(3)*a(5)*a(6)-2*x(1)*x(3)*x(4)^2*a(4)*a(5)*a(6)-x(1)*x(3)*x(4)^2*a(5)^2*a(6)-x(1)^2*x(3)^2*a(1)*a(2)*a(6)+2*x(1)^3*x(4)^2*a(1)*a(7)-x(4)^4*a(3)^2*a(7)-x(4)^4*a(3)*a(4)*a(7)+x(4)^4*a(3)*a(5)*a(7)-x(4)^4*a(5)^2*a(7)-x(1)*x(3)*x(4)^2*a(1)*a(2)*a(7)+x(1)*x(3)*x(4)^2*a(1)*a(6)*a(7)-x(1)^6+x(1)^2*x(2)*x(4)*a(1)*a(3)+x(1)^2*x(2)*x(4)*a(1)*a(4)+x(1)^2*x(2)*x(4)*a(1)*a(5)-x(2)*x(3)*x(4)*a(1)*a(3)*a(2)-2*x(2)*x(3)*x(4)*a(1)*a(4)*a(2)-x(2)*x(3)*x(4)*a(1)*a(5)*a(2)+x(2)*x(3)*x(4)*a(1)*a(4)*a(6)-x(1)^2*x(3)^2*a(2)*a(6)-x(1)*x(3)*x(4)^2*a(2)*a(7)+x(1)*x(3)*x(4)^2*a(6)*a(7)+x(4)^4*a(7)^2-x(2)*x(3)*x(4)*a(3)*a(2)+x(2)*x(3)*x(4)*a(4)*a(6)+x(2)*x(3)*x(4)*a(5)*a(6)-x(1)*x(2)^2;
-    Q[6,2]=x(1)^4*x(4)*a(1)^2*a(4)-x(1)^2*x(3)*x(4)*a(1)^2*a(4)*a(2)-2*x(3)^2*x(4)*a(1)^2*a(4)*a(2)^2+x(1)^4*x(4)*a(1)*a(5)-x(1)^2*x(3)*x(4)*a(1)*a(4)*a(2)-x(3)^2*x(4)*a(1)*a(3)*a(2)^2-2*x(3)^2*x(4)*a(1)*a(4)*a(2)^2-x(3)^2*x(4)*a(1)*a(5)*a(2)^2+x(1)^2*x(3)*x(4)*a(1)*a(4)*a(6)+x(3)^2*x(4)*a(1)*a(4)*a(2)*a(6)-x(1)^4*x(4)*a(4)-x(1)^4*x(4)*a(5)-x(1)^2*x(3)*x(4)*a(5)*a(2)-x(3)^2*x(4)*a(3)*a(2)^2+x(1)^2*x(3)*x(4)*a(4)*a(6)+x(1)^2*x(3)*x(4)*a(5)*a(6)+x(3)^2*x(4)*a(4)*a(2)*a(6)+x(3)^2*x(4)*a(5)*a(2)*a(6)-x(1)*x(4)^3*a(3)*a(7)-x(1)*x(4)^3*a(4)*a(7)+x(1)^3*x(2)*a(1)-x(1)*x(2)*x(3)*a(2)+x(2)*x(4)^2*a(7);
-    Q[6,3]=x(1)^2*x(4)^2*a(1)^2*a(4)^2-2*x(3)*x(4)^2*a(1)^2*a(4)^2*a(2)+x(1)^2*x(4)^2*a(1)*a(3)*a(4)+x(1)^2*x(4)^2*a(1)*a(4)^2+x(1)^2*x(4)^2*a(1)*a(4)*a(5)-x(3)*x(4)^2*a(1)*a(3)*a(4)*a(2)-2*x(3)*x(4)^2*a(1)*a(4)^2*a(2)-x(3)*x(4)^2*a(1)*a(4)*a(5)*a(2)+x(3)*x(4)^2*a(1)*a(4)^2*a(6)-x(1)^5*a(1)+x(1)^2*x(4)^2*a(4)*a(5)+x(1)^2*x(4)^2*a(5)^2-x(3)*x(4)^2*a(3)*a(4)*a(2)-x(1)^3*x(3)*a(1)*a(6)+x(3)*x(4)^2*a(4)^2*a(6)+x(3)*x(4)^2*a(4)*a(5)*a(6)+x(1)^5+x(1)^3*x(3)*a(2)+x(1)*x(3)^2*a(2)*a(6)-x(1)^2*x(4)^2*a(7)-x(3)*x(4)^2*a(6)*a(7)-x(1)*x(2)*x(4)*a(4)-x(1)*x(2)*x(4)*a(5)+x(2)^2;
-
-    return Q
-end
-
-Z13_Q11(xs=xs,us=us) = @with_xu 3 ℚ[a[]] begin
-    # compatibility with notation below
-    A = a
-    lookup = Dict(1=>x,2=>y,3=>z,4=>u,5=>v,6=>w)
-    a(i) = A[i]
-    x(i) = lookup[i]
-
-    # from https://nms.kcl.ac.uk/andreas.recknagel/oeq-page/defectslistforweb.txt
-    Q = zeros(R,12,12)
-    Q[1,7]=2*x(6)*a(1)^2*a(2)+2*x(6)*a(1)*a(3);
-    Q[1,8]=-3//2*x(1)^3*a(1)^3*a(2)^3-x(1)^3*a(1)^2*a(3)*a(2)^2+1//2*x(1)^3*a(1)*a(3)^2*a(2)+2*x(2)*x(6)*a(4)*a(1)^2*a(2)+2*x(2)*x(6)*a(4)*a(1)*a(3)-x(2)*x(6)*a(1)+x(1)*x(5)*a(3)+x(3);
-    Q[1,10]=-3//8*x(1)^2*a(4)*a(1)^3*a(2)^3-1//4*x(1)^2*a(4)*a(1)^2*a(3)*a(2)^2+1//8*x(1)^2*a(4)*a(1)*a(3)^2*a(2)+1//4*x(1)^2*a(3)^2-x(5);
-    Q[1,11]=-x(2);
-    Q[2,7]=3//2*x(1)^3*a(1)^3*a(2)^3+x(1)^3*a(1)^2*a(3)*a(2)^2-1//2*x(1)^3*a(1)*a(3)^2*a(2)+x(2)*x(6)*a(1)-x(1)*x(5)*a(3)+x(3);
-    Q[2,8]=3//4*x(1)^3*x(2)*a(4)*a(1)^3*a(2)^3-x(1)^2*x(6)^2*a(1)^4*a(2)^2+1//2*x(1)^3*x(2)*a(4)*a(1)^2*a(3)*a(2)^2-x(1)^2*x(6)^2*a(1)^3*a(3)*a(2)-1//4*x(1)^3*x(2)*a(4)*a(1)*a(3)^2*a(2)-1//2*x(1)^3*x(2)*a(3)^2+x(2)^2*x(6)*a(4)*a(1)+x(5)*x(6)^2*a(1)^2-x(1)*x(2)*x(5)*a(4)*a(3)+1//2*x(1)^2*x(6)^2*a(2)-x(4)^2*a(5)^2+x(1)*x(2)*x(5)+x(2)*x(3)*a(4);
-    Q[2,9]=9//32*x(1)^4*a(4)^2*a(1)^6*a(2)^6+3//8*x(1)^4*a(4)^2*a(1)^5*a(3)*a(2)^5-1//16*x(1)^4*a(4)^2*a(1)^4*a(3)^2*a(2)^4-1//8*x(1)^4*a(4)^2*a(1)^3*a(3)^3*a(2)^3+1//32*x(1)^4*a(4)^2*a(1)^2*a(3)^4*a(2)^2+3//8*x(1)^2*x(5)*a(4)*a(1)^3*a(2)^3+1//4*x(1)^2*x(5)*a(4)*a(1)^2*a(3)*a(2)^2-1//8*x(1)^4*a(3)^4-1//8*x(1)^2*x(5)*a(4)*a(1)*a(3)^2*a(2)+x(1)*x(2)*x(6)*a(1)^2*a(2)+3//4*x(1)^2*x(5)*a(3)^2+x(2)*x(4)*a(5)-x(5)^2;
-    Q[2,12]=1//2*x(1)^3*x(6)*a(1)^4*a(2)^3-3//8*x(1)^2*x(4)*a(4)*a(1)^3*a(5)*a(2)^3-1//4*x(1)^2*x(4)*a(4)*a(1)^2*a(3)*a(5)*a(2)^2-1//2*x(1)^3*x(6)*a(1)^2*a(3)^2*a(2)+1//8*x(1)^2*x(4)*a(4)*a(1)*a(3)^2*a(5)*a(2)+1//4*x(1)^2*x(4)*a(3)^2*a(5)+x(1)*x(5)*x(6)*a(1)^2*a(2)+x(2)*x(6)^2*a(1)^2+x(1)*x(2)^2-x(4)*x(5)*a(5);
-    Q[3,8]=9//32*x(1)^4*a(4)^2*a(1)^6*a(2)^6+3//8*x(1)^4*a(4)^2*a(1)^5*a(3)*a(2)^5-1//16*x(1)^4*a(4)^2*a(1)^4*a(3)^2*a(2)^4-1//8*x(1)^4*a(4)^2*a(1)^3*a(3)^3*a(2)^3+1//32*x(1)^4*a(4)^2*a(1)^2*a(3)^4*a(2)^2+3//8*x(1)^2*x(5)*a(4)*a(1)^3*a(2)^3+1//4*x(1)^2*x(5)*a(4)*a(1)^2*a(3)*a(2)^2-1//8*x(1)^4*a(3)^4-1//8*x(1)^2*x(5)*a(4)*a(1)*a(3)^2*a(2)+x(1)*x(2)*x(6)*a(1)^2*a(2)+3//4*x(1)^2*x(5)*a(3)^2-x(2)*x(4)*a(5)-x(5)^2;
-    Q[3,9]=-3//4*x(1)^2*x(6)*a(4)*a(1)^5*a(2)^4-1//2*x(1)^2*x(6)*a(4)*a(1)^4*a(3)*a(2)^3+1//4*x(1)^2*x(6)*a(4)*a(1)^3*a(3)^2*a(2)^2+3*x(1)^2*x(6)*a(1)^4*a(2)^3+2*x(1)^2*x(6)*a(1)^3*a(3)*a(2)^2-1//2*x(1)^2*x(6)*a(1)^2*a(3)^2*a(2)-2*x(5)*x(6)*a(1)^2*a(2)-2*x(5)*x(6)*a(1)*a(3)+x(2)^2;
-    Q[3,10]=3//2*x(1)^3*a(1)^3*a(2)^3+x(1)^3*a(1)^2*a(3)*a(2)^2-1//2*x(1)^3*a(1)*a(3)^2*a(2)+x(2)*x(6)*a(1)-x(1)*x(5)*a(3)+x(3);
-    Q[3,12]=-3//8*x(1)^2*x(2)*a(4)*a(1)^3*a(2)^3+2*x(1)*x(6)^2*a(1)^4*a(2)^2-1//4*x(1)^2*x(2)*a(4)*a(1)^2*a(3)*a(2)^2+2*x(1)*x(6)^2*a(1)^3*a(3)*a(2)+1//8*x(1)^2*x(2)*a(4)*a(1)*a(3)^2*a(2)-2*x(4)*x(6)*a(1)^2*a(5)*a(2)+1//4*x(1)^2*x(2)*a(3)^2-2*x(4)*x(6)*a(1)*a(3)*a(5)-x(2)*x(5);
-    Q[4,7]=-3//8*x(1)^2*a(4)*a(1)^3*a(2)^3-1//4*x(1)^2*a(4)*a(1)^2*a(3)*a(2)^2+1//8*x(1)^2*a(4)*a(1)*a(3)^2*a(2)+1//4*x(1)^2*a(3)^2-x(5);
-    Q[4,8]=-3//8*x(1)^2*x(2)*a(4)^2*a(1)^3*a(2)^3-1//4*x(1)^2*x(2)*a(4)^2*a(1)^2*a(3)*a(2)^2+1//8*x(1)^2*x(2)*a(4)^2*a(1)*a(3)^2*a(2)+1//4*x(1)^2*x(2)*a(4)*a(3)^2-x(2)*x(5)*a(4);
-    Q[4,9]=-3//2*x(1)^3*a(1)^3*a(2)^3-x(1)^3*a(1)^2*a(3)*a(2)^2+1//2*x(1)^3*a(1)*a(3)^2*a(2)-x(2)*x(6)*a(1)+x(1)*x(5)*a(3)+x(3);
-    Q[4,10]=-x(6)^2*a(1)^2-x(1)*x(2);
-    Q[4,11]=x(1)*x(6)*a(1)^2*a(2)-x(4)*a(5);
-    Q[5,7]=-x(2);
-    Q[5,8]=-x(2)^2*a(4);
-    Q[5,10]=x(1)*x(6)*a(1)^2*a(2)+x(4)*a(5);
-    Q[5,11]=-x(1)^2*a(1)^2*a(2)^2+x(5);
-    Q[5,12]=-3//2*x(1)^3*a(1)^3*a(2)^3-x(1)^3*a(1)^2*a(3)*a(2)^2+1//2*x(1)^3*a(1)*a(3)^2*a(2)-x(2)*x(6)*a(1)+x(1)*x(5)*a(3)+x(3);
-    Q[6,7]=-x(1)*x(2)*a(3);
-    Q[6,8]=1//2*x(1)^3*x(6)*a(1)^4*a(2)^3+3//8*x(1)^2*x(4)*a(4)*a(1)^3*a(5)*a(2)^3+1//4*x(1)^2*x(4)*a(4)*a(1)^2*a(3)*a(5)*a(2)^2-1//2*x(1)^3*x(6)*a(1)^2*a(3)^2*a(2)-1//8*x(1)^2*x(4)*a(4)*a(1)*a(3)^2*a(5)*a(2)-1//4*x(1)^2*x(4)*a(3)^2*a(5)+x(1)*x(5)*x(6)*a(1)^2*a(2)+x(2)*x(6)^2*a(1)^2-x(1)*x(2)^2*a(4)*a(3)+x(1)*x(2)^2+x(4)*x(5)*a(5);
-    Q[6,9]=-3//8*x(1)^2*x(2)*a(4)*a(1)^3*a(2)^3-1//4*x(1)^2*x(2)*a(4)*a(1)^2*a(3)*a(2)^2+1//8*x(1)^2*x(2)*a(4)*a(1)*a(3)^2*a(2)+2*x(4)*x(6)*a(1)^2*a(5)*a(2)+1//4*x(1)^2*x(2)*a(3)^2+2*x(4)*x(6)*a(1)*a(3)*a(5)+x(1)*x(6)^2*a(2)-x(2)*x(5);
-    Q[6,10]=x(1)^2*x(6)*a(1)^2*a(3)*a(2)+x(1)*x(4)*a(3)*a(5);
-    Q[6,11]=3//2*x(1)^3*a(1)^3*a(2)^3-1//2*x(1)^3*a(1)*a(3)^2*a(2)+x(2)*x(6)*a(1)+x(3);
-    Q[6,12]=x(1)^4*a(1)^4*a(2)^4+3//2*x(1)^4*a(1)^3*a(3)*a(2)^3-1//2*x(1)^4*a(1)*a(3)^3*a(2)+2*x(6)^3*a(1)^4*a(2)+2*x(6)^3*a(1)^3*a(3)+x(1)^2*x(5)*a(1)^2*a(2)^2+2*x(1)*x(2)*x(6)*a(1)^2*a(2)+x(1)*x(2)*x(6)*a(1)*a(3)+x(1)*x(3)*a(3)+x(5)^2;
-    Q[7,1]=-3//4*x(1)^3*x(2)*a(4)*a(1)^3*a(2)^3+x(1)^2*x(6)^2*a(1)^4*a(2)^2-1//2*x(1)^3*x(2)*a(4)*a(1)^2*a(3)*a(2)^2+x(1)^2*x(6)^2*a(1)^3*a(3)*a(2)+1//4*x(1)^3*x(2)*a(4)*a(1)*a(3)^2*a(2)+1//2*x(1)^3*x(2)*a(3)^2-x(2)^2*x(6)*a(4)*a(1)-x(5)*x(6)^2*a(1)^2+x(1)*x(2)*x(5)*a(4)*a(3)-1//2*x(1)^2*x(6)^2*a(2)+x(4)^2*a(5)^2-x(1)*x(2)*x(5)-x(2)*x(3)*a(4);
-    Q[7,2]=-3//2*x(1)^3*a(1)^3*a(2)^3-x(1)^3*a(1)^2*a(3)*a(2)^2+1//2*x(1)^3*a(1)*a(3)^2*a(2)+2*x(2)*x(6)*a(4)*a(1)^2*a(2)+2*x(2)*x(6)*a(4)*a(1)*a(3)-x(2)*x(6)*a(1)+x(1)*x(5)*a(3)+x(3);
-    Q[7,3]=-3//8*x(1)^2*x(2)*a(4)^2*a(1)^3*a(2)^3-1//4*x(1)^2*x(2)*a(4)^2*a(1)^2*a(3)*a(2)^2+1//8*x(1)^2*x(2)*a(4)^2*a(1)*a(3)^2*a(2)+1//4*x(1)^2*x(2)*a(4)*a(3)^2-x(2)*x(5)*a(4);
-    Q[7,4]=-9//32*x(1)^4*a(4)^2*a(1)^6*a(2)^6-3//8*x(1)^4*a(4)^2*a(1)^5*a(3)*a(2)^5+1//16*x(1)^4*a(4)^2*a(1)^4*a(3)^2*a(2)^4+1//8*x(1)^4*a(4)^2*a(1)^3*a(3)^3*a(2)^3-1//32*x(1)^4*a(4)^2*a(1)^2*a(3)^4*a(2)^2-3//8*x(1)^2*x(5)*a(4)*a(1)^3*a(2)^3-1//4*x(1)^2*x(5)*a(4)*a(1)^2*a(3)*a(2)^2+1//8*x(1)^4*a(3)^4+1//8*x(1)^2*x(5)*a(4)*a(1)*a(3)^2*a(2)-x(1)*x(2)*x(6)*a(1)^2*a(2)-3//4*x(1)^2*x(5)*a(3)^2-x(2)*x(4)*a(5)+x(5)^2;
-    Q[7,5]=-1//2*x(1)^3*x(6)*a(1)^4*a(2)^3+3//8*x(1)^2*x(4)*a(4)*a(1)^3*a(5)*a(2)^3+1//4*x(1)^2*x(4)*a(4)*a(1)^2*a(3)*a(5)*a(2)^2+1//2*x(1)^3*x(6)*a(1)^2*a(3)^2*a(2)-1//8*x(1)^2*x(4)*a(4)*a(1)*a(3)^2*a(5)*a(2)-1//4*x(1)^2*x(4)*a(3)^2*a(5)-x(1)*x(5)*x(6)*a(1)^2*a(2)-x(2)*x(6)^2*a(1)^2+x(1)*x(2)^2*a(4)*a(3)-x(1)*x(2)^2+x(4)*x(5)*a(5);
-    Q[7,6]=-x(2)^2*a(4);
-    Q[8,1]=3//2*x(1)^3*a(1)^3*a(2)^3+x(1)^3*a(1)^2*a(3)*a(2)^2-1//2*x(1)^3*a(1)*a(3)^2*a(2)+x(2)*x(6)*a(1)-x(1)*x(5)*a(3)+x(3);
-    Q[8,2]=-2*x(6)*a(1)^2*a(2)-2*x(6)*a(1)*a(3);
-    Q[8,3]=3//8*x(1)^2*a(4)*a(1)^3*a(2)^3+1//4*x(1)^2*a(4)*a(1)^2*a(3)*a(2)^2-1//8*x(1)^2*a(4)*a(1)*a(3)^2*a(2)-1//4*x(1)^2*a(3)^2+x(5);
-    Q[8,5]=-x(1)*x(2)*a(3);
-    Q[8,6]=x(2);
-    Q[9,2]=3//8*x(1)^2*a(4)*a(1)^3*a(2)^3+1//4*x(1)^2*a(4)*a(1)^2*a(3)*a(2)^2-1//8*x(1)^2*a(4)*a(1)*a(3)^2*a(2)-1//4*x(1)^2*a(3)^2+x(5);
-    Q[9,3]=x(6)^2*a(1)^2+x(1)*x(2);
-    Q[9,4]=3//2*x(1)^3*a(1)^3*a(2)^3+x(1)^3*a(1)^2*a(3)*a(2)^2-1//2*x(1)^3*a(1)*a(3)^2*a(2)+x(2)*x(6)*a(1)-x(1)*x(5)*a(3)+x(3);
-    Q[9,5]=x(1)^2*x(6)*a(1)^2*a(3)*a(2)-x(1)*x(4)*a(3)*a(5);
-    Q[9,6]=-x(1)*x(6)*a(1)^2*a(2)+x(4)*a(5);
-    Q[10,1]=-9//32*x(1)^4*a(4)^2*a(1)^6*a(2)^6-3//8*x(1)^4*a(4)^2*a(1)^5*a(3)*a(2)^5+1//16*x(1)^4*a(4)^2*a(1)^4*a(3)^2*a(2)^4+1//8*x(1)^4*a(4)^2*a(1)^3*a(3)^3*a(2)^3-1//32*x(1)^4*a(4)^2*a(1)^2*a(3)^4*a(2)^2-3//8*x(1)^2*x(5)*a(4)*a(1)^3*a(2)^3-1//4*x(1)^2*x(5)*a(4)*a(1)^2*a(3)*a(2)^2+1//8*x(1)^4*a(3)^4+1//8*x(1)^2*x(5)*a(4)*a(1)*a(3)^2*a(2)-x(1)*x(2)*x(6)*a(1)^2*a(2)-3//4*x(1)^2*x(5)*a(3)^2+x(2)*x(4)*a(5)+x(5)^2;
-    Q[10,3]=-3//2*x(1)^3*a(1)^3*a(2)^3-x(1)^3*a(1)^2*a(3)*a(2)^2+1//2*x(1)^3*a(1)*a(3)^2*a(2)-x(2)*x(6)*a(1)+x(1)*x(5)*a(3)+x(3);
-    Q[10,4]=3//4*x(1)^2*x(6)*a(4)*a(1)^5*a(2)^4+1//2*x(1)^2*x(6)*a(4)*a(1)^4*a(3)*a(2)^3-1//4*x(1)^2*x(6)*a(4)*a(1)^3*a(3)^2*a(2)^2-3*x(1)^2*x(6)*a(1)^4*a(2)^3-2*x(1)^2*x(6)*a(1)^3*a(3)*a(2)^2+1//2*x(1)^2*x(6)*a(1)^2*a(3)^2*a(2)+2*x(5)*x(6)*a(1)^2*a(2)+2*x(5)*x(6)*a(1)*a(3)-x(2)^2;
-    Q[10,5]=3//8*x(1)^2*x(2)*a(4)*a(1)^3*a(2)^3-2*x(1)*x(6)^2*a(1)^4*a(2)^2+1//4*x(1)^2*x(2)*a(4)*a(1)^2*a(3)*a(2)^2-2*x(1)*x(6)^2*a(1)^3*a(3)*a(2)-1//8*x(1)^2*x(2)*a(4)*a(1)*a(3)^2*a(2)+2*x(4)*x(6)*a(1)^2*a(5)*a(2)-1//4*x(1)^2*x(2)*a(3)^2+2*x(4)*x(6)*a(1)*a(3)*a(5)+x(2)*x(5);
-    Q[11,1]=-1//2*x(1)^3*x(6)*a(1)^4*a(2)^3-3//8*x(1)^2*x(4)*a(4)*a(1)^3*a(5)*a(2)^3-1//4*x(1)^2*x(4)*a(4)*a(1)^2*a(3)*a(5)*a(2)^2+1//2*x(1)^3*x(6)*a(1)^2*a(3)^2*a(2)+1//8*x(1)^2*x(4)*a(4)*a(1)*a(3)^2*a(5)*a(2)+1//4*x(1)^2*x(4)*a(3)^2*a(5)-x(1)*x(5)*x(6)*a(1)^2*a(2)-x(2)*x(6)^2*a(1)^2-x(1)*x(2)^2-x(4)*x(5)*a(5);
-    Q[11,4]=3//8*x(1)^2*x(2)*a(4)*a(1)^3*a(2)^3+1//4*x(1)^2*x(2)*a(4)*a(1)^2*a(3)*a(2)^2-1//8*x(1)^2*x(2)*a(4)*a(1)*a(3)^2*a(2)-2*x(4)*x(6)*a(1)^2*a(5)*a(2)-1//4*x(1)^2*x(2)*a(3)^2-2*x(4)*x(6)*a(1)*a(3)*a(5)-x(1)*x(6)^2*a(2)+x(2)*x(5);
-    Q[11,5]=-x(1)^4*a(1)^4*a(2)^4-3//2*x(1)^4*a(1)^3*a(3)*a(2)^3+1//2*x(1)^4*a(1)*a(3)^3*a(2)-2*x(6)^3*a(1)^4*a(2)-2*x(6)^3*a(1)^3*a(3)-x(1)^2*x(5)*a(1)^2*a(2)^2-2*x(1)*x(2)*x(6)*a(1)^2*a(2)-x(1)*x(2)*x(6)*a(1)*a(3)-x(1)*x(3)*a(3)-x(5)^2;
-    Q[11,6]=-3//2*x(1)^3*a(1)^3*a(2)^3-x(1)^3*a(1)^2*a(3)*a(2)^2+1//2*x(1)^3*a(1)*a(3)^2*a(2)-x(2)*x(6)*a(1)+x(1)*x(5)*a(3)+x(3);
-    Q[12,2]=x(2);
-    Q[12,3]=-x(1)*x(6)*a(1)^2*a(2)-x(4)*a(5);
-    Q[12,5]=3//2*x(1)^3*a(1)^3*a(2)^3-1//2*x(1)^3*a(1)*a(3)^2*a(2)+x(2)*x(6)*a(1)+x(3);
-    Q[12,6]=x(1)^2*a(1)^2*a(2)^2-x(5);
-
-    return Q
-end
-
-a_certain_chain(xs=xs) = @with_xu 2 x^10*y + y^3
-a_certain_loop(xs=xs) = @with_xu 2 x*y^7 + x^3*y
-chain_loop(xs=xs,us=us) = @with_xu 2 ℤ[a[]] begin
-    # compatibility with notation below
-    A = a
-    lookup = Dict(1=>x,2=>y,3=>u,4=>v)
-    a(i) = A[i]
-    x(i) = lookup[i]
-
-    # from https://nms.kcl.ac.uk/andreas.recknagel/oeq-page/defectslistforweb.txt
-    Q = zeros(R,6,6)
-    Q[1,4]=(2*a(1))*x(1)^4+(2*a(1))*x(1)*x(4)^2;
-    Q[1,5]=(a(1))*x(1)^3*x(4)+(a(1))*x(4)^3+x(3);
-    Q[1,6]=(a(1))*x(1)^5+(a(1))*x(1)^2*x(4)^2+x(2);
-    Q[2,4]=(-2*a(1))*x(1)^3*x(4)+(-a(1))*x(4)^3+x(3);
-    Q[2,5]=(-a(1))*x(1)^2*x(4)^2+x(2);
-    Q[2,6]=(-a(1))*x(1)^4*x(4)+x(1)*x(3);
-    Q[3,4]=(-a(1))*x(1)^5+x(2);
-    Q[3,5]=-x(1)*x(3);
-    Q[3,6]=-x(3)*x(4);
-    Q[4,1]=(a(1))*x(1)^5*x(3)*x(4)+(-a(1))*x(1)^2*x(3)*x(4)^3-x(1)^2*x(3)^2+x(2)*x(3)*x(4);
-    Q[4,2]=(a(1))*x(1)^6*x(3)+(-a(1))*x(3)*x(4)^4+x(1)*x(2)*x(3)-x(3)^2*x(4);
-    Q[4,3]=(a(1)^2+1)*x(1)^10+(a(1))*x(1)^5*x(2)+(-a(1))*x(1)*x(3)*x(4)^3-x(1)*x(3)^2+x(2)^2;
-    Q[5,1]=(-a(1)^2)*x(1)^9*x(4)+(a(1))*x(1)^6*x(3)+(a(1))*x(1)^4*x(2)*x(4)+(2*a(1))*x(1)^3*x(3)*x(4)^2+(a(1))*x(3)*x(4)^4-x(1)*x(2)*x(3)-x(3)^2*x(4);
-    Q[5,2]=x(1)^10+(-a(1)^2)*x(1)^7*x(4)^2+(2*a(1))*x(1)^4*x(3)*x(4)+(a(1))*x(1)^2*x(2)*x(4)^2+(2*a(1))*x(1)*x(3)*x(4)^3+x(2)^2;
-    Q[5,3]=(a(1)^2)*x(1)^5*x(4)^3+(a(1)^2)*x(1)^2*x(4)^5+(a(1))*x(1)^5*x(3)+(2*a(1))*x(1)^3*x(2)*x(4)+(a(1))*x(1)^2*x(3)*x(4)^2+(a(1))*x(2)*x(4)^3-x(2)*x(3);
-    Q[6,1]=(a(1)^2+1)*x(1)^10+(a(1)^2)*x(1)^7*x(4)^2+(-a(1))*x(1)^5*x(2)+(-2*a(1))*x(1)^4*x(3)*x(4)+(-a(1))*x(1)^2*x(2)*x(4)^2+(-a(1))*x(1)*x(3)*x(4)^3+x(1)*x(3)^2+x(2)^2;
-    Q[6,2]=(a(1)^2)*x(1)^8*x(4)+(a(1)^2)*x(1)^5*x(4)^3+(-a(1))*x(1)^5*x(3)+(-a(1))*x(1)^3*x(2)*x(4)+(-2*a(1))*x(1)^2*x(3)*x(4)^2+(-a(1))*x(2)*x(4)^3-x(2)*x(3);
-    Q[6,3]=(-a(1)^2)*x(1)^3*x(4)^4+(-a(1)^2)*x(4)^6+(-2*a(1))*x(1)^4*x(2)+(-a(1))*x(1)^3*x(3)*x(4)+(-2*a(1))*x(1)*x(2)*x(4)^2+x(3)^2;
-
-    return Q
-end
-
-export xs, us
-export A5, A2A2, A5_A2A2
-export E6, D7, E6_D7
-export E7, D10, E7_D10
-export E8, D16, E8_D16
-export S11, W13, S11_W13
-export E13, Z11, E13_Z11
-export a_certain_chain, a_certain_loop, chain_loop
+export ⨷, ⨶
+export unit_matrix_factorization
 
 end
