@@ -1,10 +1,10 @@
 using Base.Test
 
-@testset "QuantumDimension" begin
-    using OrbifoldEquivalence
-    using PolynomialRings
+using OrbifoldEquivalence
+using PolynomialRings
 
-    R,(x,y) = polynomial_ring(Rational{Int}, :x, :y)
+@testset "QuantumDimension" begin
+    @ring! ℚ[x,y]
 
     Q = [0 x-y; x^2 + x*y + y^2 0]
 
