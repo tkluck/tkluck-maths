@@ -86,7 +86,7 @@ end
 # -----------------------------------------------------------------------------
 using PolynomialRings: Term,AbstractMonomial, leading_term, exptype, basering, variablesymbols
 using PolynomialRings.Terms: monomial, coefficient
-using ExactLinearAlgebra: kernel
+using PolynomialRings.Util.LinAlgUtil: kernel
 TermOver{C} = Term{<:AbstractMonomial,C}
 PolynomialOver{C} = Polynomial{<:AbstractVector{<:TermOver{C}}}
 mutable struct NumberField{P<:Polynomial, ID} <: Number #_AbstractCommutativeAlgebra{P}

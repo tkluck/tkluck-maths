@@ -3,7 +3,6 @@ module MFDeformations
 using PolynomialRings
 using HomspaceMorphisms: HomspaceMorphism, kernel, span, lift_and_obstruction
 
-using ExactLinearAlgebra
 using QuasiHomogeneous
 
 function diff(Q::Matrix{P}) where P <: Polynomial
@@ -73,7 +72,7 @@ function H1(Q, dQ_even::HomspaceMorphism{P}, dQ_odd::HomspaceMorphism{P}) where 
     to_vector, to_polynomial_array = finite_subspace_conversion(H1, variablesymbols(P)...)
 
     M = hcat(map(to_vector, H1)...)
-    N = ExactLinearAlgebra.colspan(M)
+    N = PolynomialRings.Util.LinAlgUtil.colspan(M)
 
     return [to_polynomial_array(N[:,j]) for j=1:size(N,2)]
 end
@@ -108,7 +107,7 @@ function graded_implicit_tangent_space(f, Q, vars::Gradings)
     end
 
     info("Computing kernel")
-    K = ExactLinearAlgebra.kernel(M)
+    K = PolynomialRings.Util.LinAlgUtil.kernel(M)
 
     info("Substituting kernel back into deformation vector")
     result = map(indices(K,2)) do j

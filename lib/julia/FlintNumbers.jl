@@ -7,7 +7,7 @@ using Nemo
 using PolynomialRings: exptype, leading_term
 using PolynomialRings.Terms: monomial
 import CommutativeAlgebras: _grb, _ideal
-using ExactLinearAlgebra: kernel
+import PolynomialRings.Util.LinAlgUtil: kernel
 
 _id_counter = 0
 
@@ -130,7 +130,6 @@ convert(::Type{F}, f::P) where F<:FlintNumber{P} where P<:Polynomial  = f(;_name
 
 export FlintNumberField
 
-import ExactLinearAlgebra: kernel
 function kernel(M::AbstractMatrix{F}) where F <: FlintNumber
     MS = Nemo.MatrixSpace(_nemo_number_field(F), size(M)...)
 
