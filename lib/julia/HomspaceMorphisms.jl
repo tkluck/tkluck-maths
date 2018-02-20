@@ -14,8 +14,8 @@ end
 
 type HomspaceMorphism{P <: Polynomial} <: Morphism{P}
     m::Array{P, 4}
-    _image_basis::Nullable{Vector{Array{P,2}}}
-    _image_basis_transformation::Nullable{AbstractMatrix{P}}
+    _image_basis::Nullable{AbstractVector}
+    _image_basis_transformation::Nullable{AbstractMatrix}
 end
 HomspaceMorphism(m::Array{P,4}) where P <: Polynomial = HomspaceMorphism(m, Nullable{Vector{Array{P,2}}}(nothing), Nullable{AbstractMatrix{P}}(nothing))
 
