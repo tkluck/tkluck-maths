@@ -2,10 +2,18 @@ module MatrixFactorizations
 
 using PolynomialRings
 using PolynomialRings: basering, variablesymbols
-using PolynomialRings.QuotientRings: representation_matrix
+using PolynomialRings.QuotientRings: QuotientRing, representation_matrix
+
+import PolynomialRings: ⊗
 
 include("MatrixFactorizations/Library.jl")
 
+"""
+    M = flatten_blocks(X)
+
+Construct a matrix from a matrix of matrices by concatenating
+them horizontally and vertically.
+"""
 flatten_blocks(X) = vcat([hcat(X[i,:]...) for i=1:size(X,1)]...)
 
 from_alternating_grades(M::Matrix) = [
@@ -81,23 +89,37 @@ Tensor product of matrix factorizations.
 ⨶(A,B) = A⨷eye(B) + eye(A)⨷B
 
 """
-    ⨶(A,B,W,vars...)
+    X⊗quotient_ring
 
-Finite-rank homotopy representation of A⨶B, where we remove the variables
-`vars` from the result. See the pushforward paper by Dykerhoff&Murfet.
+Matrix-representation of the operator obtained from ``X``, a matrix acting on a
+module over a ring ``R``, by tensoring (over ``R``) with a quotient of ``R``.
+
+Note that `eltype(X)` is not necessarily equal to ``R``; it may also be
+an ``R``-algebra. For example, ``R=k[y]`` and `eltype(X) == @ring(k[x,y])` works.
+"""
+function ⊗(X::AbstractMatrix{<:Polynomial}, quotient_ring::Type{<:QuotientRing})
+    X_inflated = representation_matrix.(quotient_ring, X)
+    flatten_blocks(X_inflated)
+end
+
+
+"""
+    Q,ϵ = ⨶(A,B,W,vars...)
+
+Finite-rank homotopy representation of ``A⨶B``, where we remove the variables
+`vars` from the result.
+
+We return a matrix factorization ``Q`` together with an idempotent ϵ representing
+the direct summand of ``Q`` that represents ``A⨶B``.
+
+See the pushforward paper by Dykerhoff&Murfet.
 """
 function ⨶(A,B,W,vars...)
     R,_ = polynomial_ring(vars...;basering=basering(W))
     ∇W = diff.(W, vars)
-    Hs = map(x->diff(A, x), vars)
-    Hs = map(h->h⨷eye(B), Hs)
-
     Jacobian = R/Ideal(∇W...)
 
-    Q = A⨶B
-    Q_inflated = representation_matrix.(Jacobian, Q)
-
-    flatten_blocks(Q_inflated)
+    Q = (A⨶B) ⊗ Jacobian
 end
 
 """
@@ -161,7 +183,91 @@ function unit_matrix_factorization(f, left_vars, right_vars)
     return from_alternating_grades(delta_plus + delta_minus)
 end
 
+"""
+    D, A = block_diagonalization(X)
+
+Decompose the matrix factorization X into a direct sum of irreducible
+matrix factorizations, and represent this direct sum as a block-diagonal
+matrix factorization `D` such that ``A^{-1} D A = X``.
+
+NOTE: for now, this function only returns D, and not yet A!
+"""
+function block_diagonalization(X)
+    D = copy(X)
+    A = eye(X)
+    top_right = @view D[1:end÷2, end÷2+1:end]
+
+    # the following functions take parameters indexing `top_right`, but they
+    # operate simultaneously on the bottom left of `D` as well. This happens
+    # in such a way that X^2 remains the same.
+    function rowop(i, factor, j)
+        D[i,:] += factor * D[j,:]
+        D[:,j] -= factor * D[:,i]
+    end
+    function colop(i, factor, j)
+        D[:,end÷2 + i] += factor * D[:,end÷2 + j]
+        D[end÷2 + j,:] -= factor * D[end÷2 + i,:]
+    end
+
+    for _=1:100
+        for row in indices(top_right,1), col in indices(top_right,2)
+            for row2 in indices(top_right,1)
+                row2 == row && continue
+                iszero(top_right[row2,col]) && continue
+                (d,),r = divrem(top_right[row2,col], [top_right[row,col]])
+                if iszero(r)
+                    rowop(row2, -d, row)
+                    @goto more_loops
+                end
+            end
+            for col2 in indices(top_right,2)
+                col2 == col && continue
+                iszero(top_right[row,col2]) && continue
+                (d,),r = divrem(top_right[row,col2], [top_right[row,col]])
+                if iszero(r)
+                    colop(col2, -d, col)
+                    @goto more_loops
+                end
+            end
+        end
+        break
+        @label more_loops
+    end
+
+    # most inefficient algorithm I can think of
+    blocks = []
+    for row in indices(top_right,1), col in indices(top_right,2)
+        if !iszero(top_right[row, col])
+            push!(blocks, (Set([row]), Set([col])))
+        end
+    end
+    for i in 1:length(blocks)
+        j = i+1
+        while j <= length(blocks)
+            if !isempty(blocks[i][1] ∩ blocks[j][1]) || !isempty(blocks[i][2] ∩ blocks[j][2])
+                blocks[i] = (blocks[i][1] ∪ blocks[j][1], blocks[i][2] ∪ blocks[j][2])
+                deleteat!(blocks, j)
+                j = i+1
+            else
+                j += 1
+            end
+        end
+    end
+
+    rowperm = vcat(sort.(collect.(getindex.(blocks, 1)))...)
+    colperm = vcat(sort.(collect.(getindex.(blocks, 2)))...)
+    D[1:end÷2,:] = D[rowperm,:]
+    D[:,end÷2+1:end] = D[:,colperm .+ end÷2]
+
+    D[end÷2+1:end,:] = D[colperm .+ end÷2,:]
+    D[:,1:end÷2] = D[:,rowperm]
+
+    #D,A
+    D
+end
+
 export ⨷, ⨶
 export unit_matrix_factorization
+export block_diagonalization
 
 end
