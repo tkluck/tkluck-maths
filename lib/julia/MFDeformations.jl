@@ -88,8 +88,8 @@ function graded_implicit_tangent_space(f, Q, vars::Gradings)
     gr = map(q_i->quasidegree(q_i, vars), Q)
 
     info("Creating deformation vector")
-    ch = formal_coefficients(eltype(Q), :c)
-    N = generic_quasihomogeneous_map(gr, vars, ch)
+    c = formal_coefficients(eltype(Q), :c)
+    N = generic_quasihomogeneous_map(gr, vars, c)
 
     info("Applying function")
     CC = flat_coefficients(f(Q+N) - f(Q), symbols(vars)...)
@@ -125,7 +125,7 @@ end
 
 function first_order_deformation(Q, vars::Gradings, ε::Symbol)
     T = graded_implicit_tangent_space(Q->Q^2,Q,vars)
-    Q1 = sum(prod, zip(formal_coefficients(eltype(Q),ε), T))
+    Q1 = sum(prod, zip(formal_coefficients(eltype(Q),ε)[], T))
     return Q1
 end
 

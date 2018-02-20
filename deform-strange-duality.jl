@@ -16,12 +16,13 @@ gr = QuasiHomogeneous.find_quasihomogeneous_degrees(W,:x,:y,:z,:u,:v,:w)
 T = MFDeformations.graded_implicit_tangent_space(Q->Q^2, QQ, gr)
 
 R = eltype(eltype(T))
-QQQ = sum(prod, zip(formal_coefficients(R, :ε), T))
+@polyvar ε[]
+QQQ = sum(prod, zip(ε[], T))
 @show @linear_coefficients quantum_dimension(QQQ, W, [:u,:v,:w], [:x,:y,:z]) ε[]
 @show @linear_coefficients quantum_dimension(QQQ, W, [:x,:y,:z], [:u,:v,:w]) ε[]
 
-e1,e2,e3,e4,e5,e6,e7,e8 = formal_coefficients(eltype(QQ), :e)
-g = diagm([e1,e2,e3,e4,e5,e6,e7,e8])
+e = formal_coefficients(eltype(QQ), :e)
+g = diagm(e[1:8])
 I = eye(QQ)
 
 TG = @linear_coefficients (I+g)*QQ*(I-g) e[]
