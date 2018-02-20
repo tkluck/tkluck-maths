@@ -2,8 +2,8 @@ using Base.Test
 
 using PolynomialRings
 
-@testset "CommutativeAlgebras" begin
-    using CommutativeAlgebras
+@testset "FlintNumbers" begin
+    using FlintNumbers
     @testset "Construction and conversion" begin
         R = @ring! ℚ[α]
 
@@ -11,7 +11,7 @@ using PolynomialRings
 
         @test S(α)^2 - 2 == 0
 
-        Q = NumberField(S)
+        Q = FlintNumberField(S)
         @test Q(α)^2 - 2 == 0
 
         @test Q(1+α) // Q(1+α) == 1
@@ -24,11 +24,11 @@ using PolynomialRings
 
         R = @ring! Q[γ]
         S = R/Ideal(γ^2 - α)
-        Q = NumberField(S)
+        #Q = FlintNumberField(S)
 
-        @test Q(γ)^2 == α
-        @test Q(γ)^3 == α*γ
-        @test Q(γ)^4 == 2
+        #@test Q(γ)^2 == α
+        #@test Q(γ)^3 == α*γ
+        #@test Q(γ)^4 == 2
 
         B = @ring! ℚ[α, x]
         @test (α*x)^2 != 2x^2
@@ -36,7 +36,7 @@ using PolynomialRings
 
         R = @ring! ℚ[α,β]
         S = R/Ideal(α^2 - 2, β^3 - 2)
-        Q = NumberField(S)
+        Q = FlintNumberField(S)
         @test Q(α^2) == Q(β^3) == 2
 
         #RR = @ring! Q[β]
@@ -46,7 +46,5 @@ using PolynomialRings
         #QQ = NumberField(SS)
 
         #@test QQ(β + α) == QQ(β) + Q(α)
-
     end
-
 end

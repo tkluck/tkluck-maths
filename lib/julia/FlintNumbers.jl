@@ -1,19 +1,16 @@
 module FlintNumbers
 
 using PolynomialRings
-using CommutativeAlgebras
 using Nemo
 
 using PolynomialRings: exptype, leading_term
 using PolynomialRings.Terms: monomial
-import CommutativeAlgebras: _grb, _ideal
-import PolynomialRings.Util.LinAlgUtil: nullspace
+import PolynomialRings.QuotientRings: QuotientRing, ring, _grb, _ideal, monomial_basis
+import PolynomialRings.Util.LinAlgUtil: nullspace, AbstractExactNumber
 
-_id_counter = 0
-
-struct FlintNumber{P,N} <: Number
+struct FlintNumber{P,Q} <: AbstractExactNumber
     x::Nemo.nf_elem
-    FlintNumber{P,N}(x::Nemo.nf_elem) where {P,N} = new(x)
+    FlintNumber{P,Q}(x::Nemo.nf_elem) where {P,Q} = new(x)
 end
 
 function _nemo_number_field end
@@ -26,38 +23,12 @@ copy(f::Nemo.fmpq_poly) = f # this needs to be defined for power_by_squaring to 
 
 function FlintNumberField(::Type{Q}) where Q<:QuotientRing
     P = ring(Q)
-    MAX = typemax(exptype(P))
 
-    leading_monomials = [monomial(leading_term(f)).e for f in _grb(_ideal(Q))]
-
-    # lattice computation: find the monomials that are not divisible
-    # by any of the leading terms
-    nvars = nfields(eltype(leading_monomials))
-    rectangular_bounds = fill(MAX, nvars)
-    for m in leading_monomials
-        if count(!iszero, m) == 1
-            i = findfirst(m)
-            rectangular_bounds[i] = min( m[i], rectangular_bounds[i] )
-        end
-    end
-
-    if !all(b->b<MAX, rectangular_bounds)
-        throw("$Q is not a number field; it is infinite dimensional")
-    end
-
-    divisible = BitArray(rectangular_bounds...)
-    for m in leading_monomials
-        block = [(m[i]+1):b for (i,b) in enumerate(rectangular_bounds)]
-        setindex!(divisible, true, block...)
-    end
-
-    monomials = [tuple([i-1 for i in ind2sub(divisible,i)]...) for i in eachindex(divisible) if !divisible[i]]
+    monomials = monomial_basis(Q)
     coeffs(f) = (ff = rem(f,_ideal(Q)); [coefficient(ff,m,variablesymbols(P)...) for m in monomials])
     N = length(monomials)
 
-    global _id_counter
-    ID = (_id_counter+=1)
-    F = FlintNumber{P, ID}
+    F = FlintNumber{P, Q}
 
     # let's hope this is a primitive element
     α = sum(generators(P))
@@ -90,7 +61,6 @@ end
 
 import Base: zero, one, +,-,*,//, convert, promote_rule, ==, !=
 import PolynomialRings: allvariablesymbols, fraction_field
-import CommutativeAlgebras: ring
 
 zero(::Type{F}) where F<:FlintNumber = F(zero(_nemo_number_field(F)))
 one(::Type{F})  where F<:FlintNumber = F(one(_nemo_number_field(F)))
@@ -130,7 +100,7 @@ convert(::Type{F}, f::P) where F<:FlintNumber{P} where P<:Polynomial  = f(;_name
 
 export FlintNumberField
 
-function nullspace(M::AbstractMatrix{F}) where F <: FlintNumber
+function nullspace(M::Matrix{F}) where F <: FlintNumber
     MS = Nemo.MatrixSpace(_nemo_number_field(F), size(M)...)
 
     MM = MS(map(f->f.x, M))
