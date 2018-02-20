@@ -86,7 +86,7 @@ end
 # -----------------------------------------------------------------------------
 using PolynomialRings: Term,AbstractMonomial, leading_term, exptype, basering, variablesymbols
 using PolynomialRings.Terms: monomial, coefficient
-using PolynomialRings.Util.LinAlgUtil: kernel
+using PolynomialRings.Util.LinAlgUtil: nullspace
 TermOver{C} = Term{<:AbstractMonomial,C}
 PolynomialOver{C} = Polynomial{<:AbstractVector{<:TermOver{C}}}
 mutable struct NumberField{P<:Polynomial, ID} <: Number #_AbstractCommutativeAlgebra{P}
@@ -142,7 +142,7 @@ function NumberField(::Type{Q}) where Q<:QuotientRing
     α = sum(generators(P))
     M = hcat((coeffs(α^n) for n=0:N)...)
 
-    K = kernel(M)
+    K = nullspace(M)
     if size(K,2) != 1 || iszero(K[end])
         throw(AssertionError("OOPS! My naive guess for a primitive element doesn't work. Maybe this is not a number field?"))
     end
@@ -203,7 +203,7 @@ function inv(a::Q) where Q<:NumberField
         N = _extension_degree(Q)
         M = hcat((_monomial_coeffs(Q, a.f^n) for n=0:N)...)
 
-        K = kernel(M)
+        K = nullspace(M)
 
         a.inv = sum(a^(n-2) * K[n] for n=2:(N+1)) * (1//-K[1])
     end

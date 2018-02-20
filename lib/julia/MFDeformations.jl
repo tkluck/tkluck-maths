@@ -107,7 +107,7 @@ function graded_implicit_tangent_space(f, Q, vars::Gradings)
     end
 
     info("Computing kernel")
-    K = PolynomialRings.Util.LinAlgUtil.kernel(M)
+    K = PolynomialRings.Util.LinAlgUtil.nullspace(M)
 
     info("Substituting kernel back into deformation vector")
     result = map(indices(K,2)) do j

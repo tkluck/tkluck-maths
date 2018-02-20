@@ -7,7 +7,7 @@ using Nemo
 using PolynomialRings: exptype, leading_term
 using PolynomialRings.Terms: monomial
 import CommutativeAlgebras: _grb, _ideal
-import PolynomialRings.Util.LinAlgUtil: kernel
+import PolynomialRings.Util.LinAlgUtil: nullspace
 
 _id_counter = 0
 
@@ -63,7 +63,7 @@ function FlintNumberField(::Type{Q}) where Q<:QuotientRing
     α = sum(generators(P))
     M = hcat((coeffs(α^n) for n=0:N)...)
 
-    K = kernel(M)
+    K = nullspace(M)
     if size(K,2) != 1 || iszero(K[end])
         throw(AssertionError("OOPS! My naive guess for a primitive element doesn't work. Maybe this is not a number field?"))
     end
@@ -76,7 +76,7 @@ function FlintNumberField(::Type{Q}) where Q<:QuotientRing
     for β in variablesymbols(P)
         MM = copy(M)
         MM[:,end] = coeffs(P(β))
-        KK = kernel(MM)
+        KK = nullspace(MM)
         named_values[β] = F( -sum(KK[i+1]*x^i for i=0:(N-1))//KK[end] )
     end
 
@@ -130,7 +130,7 @@ convert(::Type{F}, f::P) where F<:FlintNumber{P} where P<:Polynomial  = f(;_name
 
 export FlintNumberField
 
-function kernel(M::AbstractMatrix{F}) where F <: FlintNumber
+function nullspace(M::AbstractMatrix{F}) where F <: FlintNumber
     MS = Nemo.MatrixSpace(_nemo_number_field(F), size(M)...)
 
     MM = MS(map(f->f.x, M))

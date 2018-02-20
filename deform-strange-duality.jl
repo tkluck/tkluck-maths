@@ -41,10 +41,10 @@ end
 to_vector, to_polynomial_array = MFDeformations.finite_subspace_conversion([T; TG; [Tc]], :u,:v,:w,:x,:y,:z)
 
 # TG has a linear dependency coming from scalar multiplication ⊆ the maximal torus
-@show PolynomialRings.Util.LinAlgUtil.kernel(hcat(to_vector.(TG)...))
+@show PolynomialRings.Util.LinAlgUtil.nullspace(hcat(to_vector.(TG)...))
 
 # so TG + Tc has dimension 8. T has dimension 9. As it turns out, T[4] is the
 # independent one (the following kernel is zero):
-@show PolynomialRings.Util.LinAlgUtil.kernel(hcat(to_vector.([[T[4]]; TG[1:7]; [Tc]])...))
+@show PolynomialRings.Util.LinAlgUtil.nullspace(hcat(to_vector.([[T[4]]; TG[1:7]; [Tc]])...))
 
 @show sparse( T[4] )
