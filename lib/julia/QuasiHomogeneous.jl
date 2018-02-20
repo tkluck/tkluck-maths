@@ -138,4 +138,3 @@ end
 export find_quasihomogeneous_degrees, quasidegree, generic_quasihomogeneous_map, generic_quasihomogeneous_polynomial, Gradings, symbols, gradings
 
 end
-
