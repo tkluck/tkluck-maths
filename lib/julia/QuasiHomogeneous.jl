@@ -10,12 +10,14 @@ monomials_of_grading(total_grading::I, variable_gradings::NTuple{0, I}) where I 
 end
 
 monomials_of_grading(total_grading::I, variable_gradings::NTuple{1, I}) where I <: Integer = Channel(ctype=NTuple{1, I}) do ch
+    total_grading >= 0 || return
     if total_grading % variable_gradings[1] == 0
         push!(ch, ( div(total_grading, variable_gradings[1]), ))
     end
 end
 
 monomials_of_grading(total_grading::I, variable_gradings::NTuple{2, I}) where I <: Integer = Channel(ctype=NTuple{2, I}) do ch
+    total_grading >= 0 || return
     for exp1 in 0:div(total_grading, variable_gradings[1])
         remaining1 = total_grading - variable_gradings[1] * exp1
         if remaining1 % variable_gradings[2] == 0
@@ -25,6 +27,7 @@ monomials_of_grading(total_grading::I, variable_gradings::NTuple{2, I}) where I 
 end
 
 monomials_of_grading(total_grading::I, variable_gradings::NTuple{3, I}) where I <: Integer = Channel(ctype=NTuple{3, I}) do ch
+    total_grading >= 0 || return
     for exp1 in 0:div(total_grading, variable_gradings[1])
         remaining1 = total_grading - variable_gradings[1] * exp1
         for exp2 in 0:div(remaining1, variable_gradings[2])
@@ -37,6 +40,7 @@ monomials_of_grading(total_grading::I, variable_gradings::NTuple{3, I}) where I 
 end
 
 monomials_of_grading(total_grading::I, variable_gradings::NTuple{4, I}) where I <: Integer = Channel(ctype=NTuple{4, I}) do ch
+    total_grading >= 0 || return
     for exp1 in 0:div(total_grading, variable_gradings[1])
         remaining1 = total_grading - variable_gradings[1] * exp1
         for exp2 in 0:div(remaining1, variable_gradings[2])
@@ -52,6 +56,7 @@ monomials_of_grading(total_grading::I, variable_gradings::NTuple{4, I}) where I 
 end
 
 monomials_of_grading(total_grading::I, variable_gradings::NTuple{N, I}) where I <: Integer where N = Channel(ctype=NTuple{N, I}) do ch
+    total_grading >= 0 || return
     for exp in 0:div(total_grading, variable_gradings[1])
         remaining = total_grading - variable_gradings[1] * exp
         for other_gradings in monomials_of_grading(remaining, tuple(variable_gradings[2:end]...))
