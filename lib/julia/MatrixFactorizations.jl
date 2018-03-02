@@ -16,11 +16,19 @@ them horizontally and vertically.
 """
 flatten_blocks(X) = vcat([hcat(X[i,:]...) for i=1:size(X,1)]...)
 
-from_alternating_grades(M::Matrix) = [
-    M[1:2:end,1:2:end] M[1:2:end,2:2:end];
-    M[2:2:end,1:2:end] M[2:2:end,2:2:end];
-]
-const to_alternating_grades = from_alternating_grades
+function from_alternating_grades(M::Matrix)
+    rows,cols = size(M)
+    rowperm = [1:2:rows;2:2:rows]
+    colperm = [1:2:cols;2:2:cols]
+    M[rowperm, colperm]
+end
+
+function to_alternating_grades(M::Matrix)
+    rows,cols = size(M)
+    rowperm = [1:2:rows;2:2:rows]
+    colperm = [1:2:cols;2:2:cols]
+    M[invperm(rowperm),invperm(colperm)]
+end
 
 """
     A⨷B
