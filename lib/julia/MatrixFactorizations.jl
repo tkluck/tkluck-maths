@@ -274,7 +274,23 @@ function block_diagonalization(X)
     D
 end
 
-export ⨷, ⨶
+function ⊕(A::AbstractMatrix, B::AbstractMatrix)
+    m1,n1 = size(A)
+    m2,n2 = size(B)
+    T = promote_type(eltype(A), eltype(B))
+    res = [
+        A                zeros(T, m1, n2);
+        zeros(T, m2, n1) B;
+    ]
+end
+
+function ⊞(A::AbstractMatrix, B::AbstractMatrix)
+    C = to_alternating_grades(A)
+    D = to_alternating_grades(B)
+    return from_alternating_grades(C ⊕ D)
+end
+
+export ⨷, ⨶, ⊞, ⊕
 export unit_matrix_factorization
 export block_diagonalization
 
