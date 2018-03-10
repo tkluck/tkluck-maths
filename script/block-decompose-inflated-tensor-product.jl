@@ -12,7 +12,7 @@ Jacobian = @ring(ℚ[y])/Ideal(∇W...)
 X = A⨶B
 Q = X ⊗ Jacobian
 
-λ = eye(Int,2)⨷diff.(B, :y)⊗Jacobian
+λ = eye(Int,2)⨷diff.(B, :y)//(-3)
 
 # the differential operator taking ``R[var]`` into ``Ω^1_{R[var^exp] / R}``.
 function reldiff(f, var, exp)
@@ -20,12 +20,9 @@ function reldiff(f, var, exp)
     varval = typeof(f)(var)
     for ((n,),c) in expansion(f, var)
         d,r = divrem(n, exp)
-        # writing ``t = var^exp``, we now have
-        #     term = c * var^r * t^d
+        r == 0 || throw(ValueError("reldiff needs multiples for $var^$exp"))
         d == 0 && continue
-        # so its differential w.r.t. t is equal to
-        #     d(term) = c * var^r * d*t^(d-1) * dt
-        res += c*d*varval^(r+(d-1)*exp)
+        res += c*d*varval^((d-1)*exp)
     end
     res
 end
@@ -34,9 +31,8 @@ function matrix_over_t(X, var, exp)
     blocks = map(X) do f
         res = zeros(typeof(f), exp, exp)
         for ((n,),c) in expansion(f, var)
-            d,r = divrem(n, exp)
             for i = 0:exp-1
-                j = mod(i+r, exp)
+                j = mod(i+n, exp)
                 res[j+1,i+1] += c*varval^(n + i - j)
             end
         end
@@ -47,14 +43,36 @@ end
 ∇(v) = reldiff.(v, :y, 2)
 
 XX = matrix_over_t(X, :y, 2)
-At = -∇(XX)
+At = -∇(XX)(y=0)
 
 iszero(XX*At + At*XX)
 
-e = -λ * At
+e = -(λ⊗Jacobian) * At
 
 iszero(e^2 - e)
 
 iszero(Q*e - e*Q)
 
 block_diagonalization(Q)
+
+# Knörrer perdiodicity
+S = @ring! ℚ[u,v]
+K = [0 u; v 0]
+Kdual = [0 v; -u 0]
+
+Y = A ⨶ K
+YY = Y ⨶ Kdual
+
+Jac = S/Ideal(u,v)
+YYY = YY ⊗ Jac
+
+λ1 = -eye(Y) ⨷ diff(Kdual, :v)
+λ2 = -eye(Y) ⨷ diff(Kdual, :u)
+
+M = matrix_over_t(matrix_over_t(YY, :u, 1), :v, 1)
+Att = (reldiff.(M, :u, 1)*reldiff.(M, :v, 1) - reldiff.(M, :v, 1)*reldiff.(M, :u, 1))//2
+
+ee = -λ1 * λ2 * Att
+
+ee^2 == ee
+iszero(ee*YYY - YYY*ee)
