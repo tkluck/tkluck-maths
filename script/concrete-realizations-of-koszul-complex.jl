@@ -94,3 +94,37 @@ iszero(matrix_over_t(π*K - X*π, :y, 2)(y=0))
 ϑ = projection(matrix_over_t(π*ϑ′, :y, 2)(y=0))
 
 ϑ == -λ⊗Jacobian
+
+
+# --------------------------------------------------
+#
+# Contracting the Koszul complex
+#
+# --------------------------------------------------
+"""
+In order to understand why the map `e` is not an idempotent, I'd like
+to trace through the computation in DM. There, the fact that it is
+an idempotent follows from
+
+e = ϑ∘ψ
+
+and
+
+ψ∘ϑ = 1
+
+We already computed ϑ above. Can we compute ψ as well?
+
+By definition
+
+ψ = ε∘σ_∞
+
+and
+
+σ_∞ = sum( (-H*X)^m * σ for m=0:∞ )
+
+where
+
+H = τ^-1 * ∇
+σ - lemma 8.12
+τ = δ*∇ + ∇*δ
+"""
