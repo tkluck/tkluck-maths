@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+HOMEDIR="$( pwd )"
+PROJECTDIR="$HOMEDIR"
+cat - | tee -a "$HOMEDIR/.juliarc.jl" <<JULIA
+unshift!(LOAD_PATH, "$PROJECTDIR/lib/julia")
+JULIA
