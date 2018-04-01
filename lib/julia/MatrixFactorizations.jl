@@ -274,6 +274,48 @@ function block_diagonalization(X)
     D
 end
 
+struct RowOp{P}
+    target_row::Int
+    factor::P
+    source_row::Int
+end
+
+function (op::RowOp)(M::AbstractMatrix)
+    n, m = size(M)
+    n == m && n%2 == 0 || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.RowOp"))
+    res = copy(M)
+    if (op.target_row <= n÷2 && op.source_row <= n÷2) || (op.target_row > n÷2 && op.source_row > n÷2)
+        # row operation
+        res[op.target_row,:] += op.factor * res[op.source_row,:]
+        # corresonding column operation in the other block
+        res[:,op.source_row] -= op.factor * res[:,op.target_row]
+    else
+        throw(ArgumentError("MatrixFactorizations.RowOp needs to have both rows in the same graded block"))
+    end
+    return res
+end
+
+struct ColOp{P}
+    target_col::Int
+    factor::P
+    source_col::Int
+end
+
+function (op::ColOp)(M::AbstractMatrix)
+    n, m = size(M)
+    n == m && n%2 == 0 || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.ColOp"))
+    res = copy(M)
+    if (op.target_col <= n÷2 && op.source_col <= n÷2) || (op.target_col > n÷2 && op.source_col > n÷2)
+        # column operation
+        res[:,op.target_col] += op.factor * res[:,op.source_col]
+        # corresonding row operation in the other block
+        res[op.source_col,:] -= op.factor * res[op.target_col,:]
+    else
+        throw(ArgumentError("MatrixFactorizations.ColOp needs to have both rows in the same graded block"))
+    end
+    return res
+end
+
 function ⊕(A::AbstractMatrix, B::AbstractMatrix)
     m1,n1 = size(A)
     m2,n2 = size(B)
@@ -293,5 +335,6 @@ end
 export ⨷, ⨶, ⊞, ⊕
 export unit_matrix_factorization
 export block_diagonalization
+export RowOp, ColOp
 
 end
