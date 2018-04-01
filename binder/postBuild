@@ -4,6 +4,7 @@ HOMEDIR="$( pwd )"
 PROJECTDIR="$HOMEDIR"
 cat - | tee -a "$HOMEDIR/.juliarc.jl" <<JULIA
 unshift!(LOAD_PATH, "$PROJECTDIR/lib/julia")
+ENV["COLUMNS"] = 120
 JULIA
 
 julia -e'Pkg.checkout("PolynomialRings")'
