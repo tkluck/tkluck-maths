@@ -132,22 +132,22 @@ function ⨶(A,B,W,vars...)
 end
 
 """
-    unit_matrix_factorization(f, left_vars, right_vars)
+    unit_matrix_factorization(f, source_vars, target_vars)
 
-A ℤ/2-graded matrix that squares to `f - f(;left_vars => right_vars)` times
+A ℤ/2-graded matrix that squares to `f(;source_vars => target_vars) - f` times
 the identity matrix.
 
 The source for this formulation is
 
 > Adjunctions and defects in Landau-Ginzburg models, Nils Carqueville and Daniel Murfet
 """
-function unit_matrix_factorization(f, left_vars, right_vars)
+function unit_matrix_factorization(f, source_vars, target_vars)
     R = typeof(f)
     function ∂(f, n)
         for i in 1:n-1
-            f = f(; left_vars[i] => R(right_vars[i]))
+            f = f(; source_vars[i] => R(target_vars[i]))
         end
-        factors = div(R(f - f(; left_vars[n] => R(right_vars[n]))), [R(left_vars[n]) - R(right_vars[n])])
+        factors = div(R(f - f(; source_vars[n] => R(target_vars[n]))), [R(source_vars[n]) - R(target_vars[n])])
         factors[1]
     end
 
@@ -157,7 +157,7 @@ function unit_matrix_factorization(f, left_vars, right_vars)
     #
     # The use of 'gray code' (see wikipedia) ensures that subsequent elements differ by
     # exactly one bit. This way, rows/columns of our result matrix have _alternating_ signs.
-    N = length(left_vars)
+    N = length(source_vars)
     gray_code(x) = xor(x, x>>1)
     permutation = map(n->gray_code(n)+1, 0:2^N-1)
     inv_perm = invperm(permutation)
@@ -188,7 +188,7 @@ function unit_matrix_factorization(f, left_vars, right_vars)
     end
 
     delta_plus = sum( ∂(f, i) * wedge_product_matrix(R, i) for i=1:N )
-    delta_minus = sum( (R(left_vars[i]) - R(right_vars[i])) * lift_matrix(R, i) for i = 1:N )
+    delta_minus = sum( (R(source_vars[i]) - R(target_vars[i])) * lift_matrix(R, i) for i = 1:N )
     return from_alternating_grades(delta_plus + delta_minus)
 end
 
