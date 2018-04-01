@@ -360,9 +360,17 @@ function ⊞(A::AbstractMatrix, B::AbstractMatrix)
     return from_alternating_grades(C ⊕ D)
 end
 
+rows(M::AbstractMatrix) =    [M[i,:]' for i=indices(M,1)]
+columns(M::AbstractMatrix) = [M[:,i]  for i=indices(M,2)]
+topleft(M::AbstractMatrix)     = M[1:end÷2,     1:end÷2]
+topright(M::AbstractMatrix)    = M[1:end÷2,     end÷2+1:end]
+bottomleft(M::AbstractMatrix)  = M[end÷2+1:end, 1:end÷2]
+bottomright(M::AbstractMatrix) = M[end÷2+1:end, end÷2:end]
+
 export ⨷, ⨶, ⊞, ⊕
 export unit_matrix_factorization
 export block_diagonalization
+export rows, columns, topleft, topright, bottomleft, bottomright
 export RowOp, ColOp
 export dual
 export matrix_over_subring
