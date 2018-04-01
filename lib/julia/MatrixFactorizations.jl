@@ -3,6 +3,7 @@ module MatrixFactorizations
 using PolynomialRings
 using PolynomialRings: basering, variablesymbols
 using PolynomialRings.QuotientRings: QuotientRing, representation_matrix
+import PolynomialRings.VariableNames: Named
 
 import PolynomialRings: ⊗
 
@@ -316,6 +317,33 @@ function (op::ColOp)(M::AbstractMatrix)
     return res
 end
 
+function dual(M::AbstractMatrix)
+    n, m = size(M)
+    n == m && n%2 == 0 || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.dual"))
+
+    [
+       M[1:end÷2, 1:end÷2]     M[end÷2+1:end, 1:end÷2]    ;
+      -M[1:end÷2, end÷2+1:end] M[end÷2+1:end, end÷2+1:end];
+    ]
+end
+
+function matrix_over_subring(M::AbstractMatrix, var, exp, substitution_var)
+    _, P = PolynomialRings.Expansions._expansion_types(eltype(M), Named{(var,)})
+    R, (substitution_var_val,) = polynomial_ring(substitution_var, basering=Int)
+    S = promote_type(P, R)
+    blocks = map(M) do f
+        res = zeros(S, exp, exp)
+        for ((n,),c) in expansion(f, var)
+            for i = 0:exp-1
+                j = mod(i+n, exp)
+                res[j+1,i+1] += c*substitution_var_val^((n + i - j)÷exp)
+            end
+        end
+        res
+    end
+    return flatten_blocks(blocks)
+end
+
 function ⊕(A::AbstractMatrix, B::AbstractMatrix)
     m1,n1 = size(A)
     m2,n2 = size(B)
@@ -336,5 +364,7 @@ export ⨷, ⨶, ⊞, ⊕
 export unit_matrix_factorization
 export block_diagonalization
 export RowOp, ColOp
+export dual
+export matrix_over_subring
 
 end
