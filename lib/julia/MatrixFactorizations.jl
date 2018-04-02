@@ -3,6 +3,7 @@ module MatrixFactorizations
 using PolynomialRings
 using PolynomialRings: basering, variablesymbols
 using PolynomialRings.QuotientRings: QuotientRing, representation_matrix
+using Combinatorics: permutations, parity
 import PolynomialRings.VariableNames: Named
 
 import PolynomialRings: ⊗
@@ -342,6 +343,62 @@ function matrix_over_subring(M::AbstractMatrix, var, exp, substitution_var)
         res
     end
     return flatten_blocks(blocks)
+end
+
+function getpotential(A::AbstractMatrix)
+    A_sq = A^2
+    f = A_sq[1,1]
+    A_sq == f*eye(A_sq) || throw(ArgumentError("getpotential() needs a matrix factorization"))
+    return f
+end
+
+function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
+    vars_to_fuse = [var_to_fuse; vars_to_fuse...]
+    R = promote_type(eltype(A), eltype(B))
+    Q = A⨶B
+
+    W, V = getpotential.((A,B))
+    f = V - constant_coefficient(V, vars_to_fuse...)
+    ∇f = [diff(f, v) for v in vars_to_fuse]
+    ∇B = [diff(B, v) for v in vars_to_fuse]
+    gr, tr = gröbner_transformation(∇f)
+
+    var_data = map(enumerate(vars_to_fuse)) do x
+        i,v = x
+        pow = 1
+        while !iszero(rem(R(v)^pow, gr))
+            pow += 1
+            pow > 30 && throw(ArgumentError("Power for computing Jacobian is too high; exiting"))
+        end
+        lift = div(R(v)^pow, gr)*tr
+        λ = eye(A)⨷sum(prod, zip(lift, ∇B))
+        t = Symbol("t$i")
+        (v, pow, t, λ)
+    end
+
+    inflate(M) = foldl((x,f)->f(x), M, [x->matrix_over_subring(x, v, pow, t) for (v, pow, t, λ) in var_data])
+    p(x) = x(; [t=>0 for (v, pow, t, λ) in var_data]...)
+
+    QQ = inflate(Q)
+    At = -sum(σ-> (-1)^parity(σ) * prod(diff(QQ, t) for (v, pow, t, λ) in var_data[σ]), permutations(eachindex(var_data)))//factorial(length(var_data))
+    λλ = inflate(prod(λ for (v, pow, t, λ) in var_data))
+    e = (-1)^length(var_data) * p(λλ * At)
+    QQQ = p(QQ)
+
+    @assert e*QQQ == QQQ*e
+    strictification_loops = 0
+    while e^2 != e
+        (strictification_loops+=1) > 1 && throw(ArgumentError("Failed to strictify e: too many loops"))
+        h = matrix_solve_affine(h->QQQ*h + h*QQQ, e^2 - e, size(QQQ))
+        h === nothing && throw(ArgumentError("Failed to strictify e: not idempotent"))
+        b = matrix_solve_affine(b->e*b + b*e, h, size(QQQ))
+        e = e + QQQ*b + b*QQQ
+    end
+
+    # naive splitting of the idempotent
+    image = hcat(gröbner_basis(columns(e))...)
+    d = size(image, 2)
+    return matrix_solve_affine(Q -> image*Q, QQQ*image, (d,d))
 end
 
 function ⊕(A::AbstractMatrix, B::AbstractMatrix)
