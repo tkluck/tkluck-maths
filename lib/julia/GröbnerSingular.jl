@@ -61,6 +61,15 @@ function print(singular::SingularProc, a::AbstractArray{<:Polynomial})
     print(singular, "]")
 end
 
+function print(singular::SingularProc, a::AbstractSparseArray{<:Polynomial})
+    print(singular,"0")
+    for i in find(a)
+        print(singular, "+")
+        print(singular, "gen($i)*")
+        print(singular, a[i])
+    end
+end
+
 function parse_polynomial(::Type{P}, a::AbstractString) where P<:Polynomial
     if startswith(a, "-")
         a = "0$a"
