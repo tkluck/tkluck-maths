@@ -33,8 +33,8 @@ function singularproc(f)
 end
 
 print(sp::SingularProc, x::String) = print(sp.s, x)
-print(sp::SingularProc, x::Char) = print(sp.s, x)
-print(sp::SingularProc, x) = print(sp.s, x)
+print(sp::SingularProc, x::Char)   = print(sp.s, x)
+print(sp::SingularProc, x)         = print(sp.s, x)
 
 expect!(sp::SingularProc{<:ExpectProc}, x) = expect!(sp.s, x)
 expect!(sp::SingularProc, x) = ""
