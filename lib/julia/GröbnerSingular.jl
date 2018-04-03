@@ -28,7 +28,7 @@ function singularproc(f)
     try
         return f(singular)
     finally
-        close(stream)
+        kill(stream)
     end
 end
 
