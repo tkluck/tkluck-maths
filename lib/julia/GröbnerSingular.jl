@@ -9,7 +9,7 @@ using PolynomialRings: generators, integral_fraction, base_extend
 import Expect: ExpectProc, expect!
 
 import Base: write, print
-import PolynomialRings: gröbner_basis, gröbner_transformation
+import PolynomialRings: gröbner_basis, gröbner_transformation, lift
 import PolynomialRings.Backends.Gröbner: Backend
 
 struct SingularExpect <: Backend end
@@ -43,6 +43,12 @@ print(ep::ExpectProc, x::Char) = print(ep.in_stream, x)
 
 function set_ring!(singular::SingularProc, ::Type{P}) where P<:Polynomial
     println(singular, "ring R = 0, x(1..$(num_variables(monomialtype(P)))), (c,dp);")
+end
+
+function print(singular::SingularProc, x::Rational)
+    print(singular, numerator(x))
+    print(singular, "/")
+    print(singular, denominator(x))
 end
 
 print(singular::SingularProc, m::AbstractMonomial) = join(singular, ["x($ix)^$e" for (ix, e) in enumeratenz(m)], "*")
@@ -80,7 +86,7 @@ function parse_polynomial(::Type{P}, a::AbstractString) where P<:Polynomial
                 m = match(r"
                     x\(  (?<varnum>[0-9]+)  \)  (?:\^  (?<exp>[0-9]+)  )?
                     |
-                    (?<num>[0-9]+)
+                    ( (?<num>[0-9]+) (/(?<denom>[0-9]+))? )
                 "x, var)
                 if m !== nothing && m[:exp] !== nothing
                     varnum = parse(Int, m[:varnum])
@@ -91,7 +97,12 @@ function parse_polynomial(::Type{P}, a::AbstractString) where P<:Polynomial
                     generators(P)[varnum]
                 elseif m !== nothing && m[:num] !== nothing
                     num = parse(BigInt, m[:num])
-                    P(num)
+                    if m[:denom] !== nothing
+                        denom = parse(BigInt, m[:denom])
+                        P(num//denom)
+                    else
+                        P(num)
+                    end
                 else
                     throw(ErrorException("Can't parse Singular's output at $var (in $a)"))
                 end
@@ -235,7 +246,56 @@ function singular_liftstd(G::AbstractArray{<:AbstractArray{P}}) where P<:Polynom
     end
 end
 
-const ApplicableBaserings = Union{BigInt}
+function singular_lift(G::AbstractArray{P}, y::P) where P<:Polynomial
+    singularproc() do singular
+        expect!(singular, "> ")
+        set_ring!(singular, P)
+        expect!(singular, "> ")
+
+        print(singular, "ideal I = ")
+        join(singular, G, ", ")
+        println(singular, ";")
+        expect!(singular, "> ")
+
+        print(singular, "poly y = ")
+        print(singular, y)
+        println(singular, ";")
+        expect!(singular, "> ")
+
+        println(singular, "lift(I, y);")
+        result = expect!(singular, "> ")
+
+        parse_matrix(P, result)
+    end
+end
+
+function singular_lift(G::AbstractArray{<:A}, y::A) where A<:AbstractArray{P} where P<:Polynomial
+    isempty(G) && return copy(G)
+    module_dims = size(G[1])
+
+    singularproc() do singular
+        expect!(singular, "> ")
+        set_ring!(singular, P)
+        expect!(singular, "> ")
+
+        print(singular, "module M = ")
+        join(singular, G, ", ")
+        println(singular, ";")
+        expect!(singular, "> ")
+
+        print(singular, "vector y = ")
+        print(singular, y)
+        println(singular, ";")
+        expect!(singular, "> ")
+
+        println(singular, "lift(M, y);")
+        result = expect!(singular, "> ")
+
+        parse_matrix(P, result)
+    end
+end
+
+const ApplicableBaserings = Union{BigInt,Rational{BigInt}}
 const ApplicablePolynomial = PolynomialOver{<:ApplicableBaserings}
 const ApplicableModuleElement = Union{ApplicablePolynomial, AbstractArray{<:ApplicablePolynomial}}
 function gröbner_basis(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomials::AbstractArray{<:ApplicableModuleElement}; kwds...)
@@ -246,21 +306,8 @@ function gröbner_transformation(::SingularExpect, ::MonomialOrder{:degrevlex}, 
     return gr, sparse(transpose(tr)) # opposite convention for matrix multiplication in Singular compared to us
 end
 
-const RationalPolynomial = PolynomialOver{Rational{BigInt}}
-const RationalModuleElement = Union{RationalPolynomial, AbstractArray{<:RationalPolynomial}}
-function gröbner_basis(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomials::AbstractArray{<:RationalModuleElement}; kwds...)
-    integral_polynomials = [p for (p, _) in integral_fraction.(polynomials)]
-    return base_extend.(gröbner_basis(SingularExpect(), MonomialOrder{:degrevlex}(), integral_polynomials))
-end
-function gröbner_transformation(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomials::AbstractArray{<:RationalModuleElement}; kwds...)
-    integral_fractions   = integral_fraction.(polynomials)
-    integral_polynomials = getindex.(integral_fractions, 1)
-    multipliers          = getindex.(integral_fractions, 2)
-    gr, tr = gröbner_transformation(SingularExpect(), MonomialOrder{:degrevlex}(), integral_polynomials)
-    for (i,D) in enumerate(multipliers)
-        tr[:,i] *= D
-    end
-    return base_extend.(gr), base_extend.(tr)
+function lift(::SingularExpect, G::AbstractArray{<:ApplicableModuleElement}, y::ApplicableModuleElement; kwds...)
+    return singular_lift(G, y)' # opposite convention for matrix multiplication in Singular compared to us
 end
 
 
