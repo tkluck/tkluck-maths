@@ -278,46 +278,92 @@ function block_diagonalization(X)
     D
 end
 
-struct RowOp{P}
+struct RowOp
     target_row::Int
-    factor::P
+    target_factor
     source_row::Int
+    source_factor
 end
+
 
 function (op::RowOp)(M::AbstractMatrix)
     n, m = size(M)
     n == m && n%2 == 0 || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.RowOp"))
     res = copy(M)
-    if (op.target_row <= n÷2 && op.source_row <= n÷2) || (op.target_row > n÷2 && op.source_row > n÷2)
+    if op.source_row == 0
+        res[op.target_row,:] *= op.target_factor
+        res[:,op.target_row] //= op.target_factor
+    elseif (op.target_row <= n÷2 && op.source_row <= n÷2) || (op.target_row > n÷2 && op.source_row > n÷2)
         # row operation
-        res[op.target_row,:] += op.factor * res[op.source_row,:]
+        target_topright = @view res[[op.target_row,op.source_row],:]
+        t = [op.target_factor op.source_factor; 0 1]
+        target_topright .= t * target_topright
         # corresonding column operation in the other block
-        res[:,op.source_row] -= op.factor * res[:,op.target_row]
+        target_bottomleft = @view res[:,[op.target_row,op.source_row]]
+        t_inv = [1 -op.source_factor; 0 op.target_factor]//op.target_factor
+        target_bottomleft .= target_bottomleft * t_inv
     else
         throw(ArgumentError("MatrixFactorizations.RowOp needs to have both rows in the same graded block"))
     end
     return res
 end
 
-struct ColOp{P}
+struct ColOp
     target_col::Int
-    factor::P
+    target_factor
     source_col::Int
+    source_factor
 end
 
 function (op::ColOp)(M::AbstractMatrix)
     n, m = size(M)
     n == m && n%2 == 0 || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.ColOp"))
     res = copy(M)
-    if (op.target_col <= n÷2 && op.source_col <= n÷2) || (op.target_col > n÷2 && op.source_col > n÷2)
+    if op.source_col == 0
+        res[:,op.target_col] *= op.target_factor
+        res[op.target_col,:] //= op.target_factor
+    elseif (op.target_col <= n÷2 && op.source_col <= n÷2) || (op.target_col > n÷2 && op.source_col > n÷2)
         # column operation
-        res[:,op.target_col] += op.factor * res[:,op.source_col]
-        # corresonding row operation in the other block
-        res[op.source_col,:] -= op.factor * res[op.target_col,:]
+        target_topright = @view res[:,[op.target_col,op.source_col]]
+        t = [op.target_factor op.source_factor; 0 1]
+        target_topright .= target_topright * t
+        # corresonding column operation in the other block
+        target_bottomleft = @view res[[op.target_col,op.source_col],:]
+        t_inv = [1 -op.source_factor; 0 op.target_factor]//op.target_factor
+        target_bottomleft .= t_inv * target_bottomleft
     else
         throw(ArgumentError("MatrixFactorizations.ColOp needs to have both rows in the same graded block"))
     end
     return res
+end
+
+RowOp(target_row, factor) = RowOp(target_row, factor, 0, 0)
+ColOp(target_col, factor) = ColOp(target_col, factor, 0, 0)
+RowOp(target_row, source_factor, source_row) = RowOp(target_row, 1, source_row, source_factor)
+ColOp(target_col, source_factor, source_col) = ColOp(target_col, 1, source_col, source_factor)
+
+struct RowSwap
+    row1::Int
+    row2::Int
+end
+
+function (op::RowSwap)(M::AbstractMatrix)
+    res = copy(M)
+    res[[op.row1,op.row2],:] = res[[op.row2,op.row1],:]
+    res[:,[op.row1,op.row2]] = res[:,[op.row2,op.row1]]
+    res
+end
+
+struct ColSwap
+    col1::Int
+    col2::Int
+end
+
+function (op::ColSwap)(M::AbstractMatrix)
+    res = copy(M)
+    res[:,[op.col1,op.col2]] = res[:,[op.col2,op.col1]]
+    res[[op.col1,op.col2],:] = res[[op.col2,op.col1],:]
+    res
 end
 
 function dual(M::AbstractMatrix)
@@ -430,7 +476,7 @@ export ⨷, ⨶, ⊞, ⊕
 export unit_matrix_factorization
 export block_diagonalization
 export rows, columns, topleft, topright, bottomleft, bottomright
-export RowOp, ColOp
+export RowOp, ColOp, RowSwap, ColSwap
 export dual
 export matrix_over_subring
 
