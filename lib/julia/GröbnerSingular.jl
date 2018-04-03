@@ -253,8 +253,9 @@ function gröbner_basis(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomia
     return base_extend.(gröbner_basis(SingularExpect(), MonomialOrder{:degrevlex}(), integral_polynomials))
 end
 function gröbner_transformation(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomials::AbstractArray{<:RationalModuleElement}; kwds...)
-    integral_polynomials = [p for (p, _) in integral_fraction.(polynomials)]
-    multipliers          = [D for (_, D) in integral_fraction.(polynomials)]
+    integral_fractions   = integral_fraction.(polynomials)
+    integral_polynomials = getindex.(integral_fractions, 1)
+    multipliers          = getindex.(integral_fractions, 2)
     gr, tr = gröbner_transformation(SingularExpect(), MonomialOrder{:degrevlex}(), integral_polynomials)
     for (i,D) in enumerate(multipliers)
         tr[:,i] *= D
