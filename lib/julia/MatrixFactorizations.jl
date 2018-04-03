@@ -143,7 +143,9 @@ The source for this formulation is
 > Adjunctions and defects in Landau-Ginzburg models, Nils Carqueville and Daniel Murfet
 """
 function unit_matrix_factorization(f, source_vars, target_vars)
-    R = typeof(f)
+    S, _ = polynomial_ring(source_vars..., target_vars...)
+    R = promote_type(S, typeof(f))
+    f = R(f)
     function ∂(f, n)
         for i in 1:n-1
             f = f(; source_vars[i] => R(target_vars[i]))
