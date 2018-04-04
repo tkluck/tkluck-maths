@@ -30,7 +30,9 @@ function singularproc(f)
     try
         return f(singular)
     finally
-        kill(stream)
+        # be aggressive, as it doesn't seem to listen to friendly
+        # requests to shut down
+        kill(stream, 9)
     end
 end
 
