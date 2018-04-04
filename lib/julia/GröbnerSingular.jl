@@ -88,8 +88,9 @@ function print(singular::SingularProc, a::AbstractSparseArray{<:Polynomial})
     print(singular,"0")
     for i in find(a)
         print(singular, "+")
-        print(singular, "gen($i)*")
+        print(singular, "gen($i)*(")
         print(singular, a[i])
+        print(singular, ")")
     end
 end
 
