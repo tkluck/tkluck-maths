@@ -434,6 +434,8 @@ function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
     QQQ = p(QQ)
 
     @assert e*QQQ == QQQ*e
+    e, QQQ = sparse.((e,QQQ))
+
     strictification_loops = 0
     h = matrix_solve_affine(h->QQQ*h + h*QQQ, e^2 - e, size(QQQ))
     isnull(h) && throw(ArgumentError("Failed to strictify e: not idempotent"))
@@ -447,7 +449,7 @@ function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
     # naive splitting of the idempotent
     image = hcat(gröbner_basis(columns(e))...)
     d = size(image, 2)
-    return matrix_solve_affine(Q -> image*Q, QQQ*image, (d,d))
+    return collect( matrix_solve_affine(Q -> image*Q, QQQ*image, (d,d)) )
 end
 
 function ⊕(A::AbstractMatrix, B::AbstractMatrix)
