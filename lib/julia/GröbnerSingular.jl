@@ -1,5 +1,7 @@
 module GröbnerSingular
 
+using Nulls: null
+
 using PolynomialRings.Monomials: AbstractMonomial, num_variables, enumeratenz
 import PolynomialRings.MonomialOrderings: MonomialOrder
 using PolynomialRings.Terms: Term, coefficient, monomial
@@ -36,7 +38,20 @@ print(sp::SingularProc, x::String) = print(sp.s, x)
 print(sp::SingularProc, x::Char)   = print(sp.s, x)
 print(sp::SingularProc, x)         = print(sp.s, x)
 
-expect!(sp::SingularProc{<:ExpectProc}, x) = expect!(sp.s, x)
+struct SingularError
+    msg::String
+end
+
+function expect_output!(sp::SingularProc{<:ExpectProc})
+    output = expect!(sp.s, "> ")
+    if "// **" ⊆ output
+        msg = mapreduce(m->m[:msg], *, eachmatch(r"// \*\* (?<msg>.*)$"m, output))
+        throw(SingularError("Error from Singular: $msg"))
+    else
+       return output
+    end
+end
+
 expect!(sp::SingularProc, x) = ""
 
 print(ep::ExpectProc, x::Char) = print(ep.in_stream, x)
@@ -104,7 +119,7 @@ function parse_polynomial(::Type{P}, a::AbstractString) where P<:Polynomial
                         P(num)
                     end
                 else
-                    throw(ErrorException("Can't parse Singular's output at $var (in $a)"))
+                    throw(SngularError("Can't parse Singular's output at $var (in $a)"))
                 end
             end
         end
@@ -118,7 +133,7 @@ function parse_vector(::Type{P}, a::AbstractString, module_dims) where P<:Polyno
         res[1:length(entries)] = entries
         res
     else
-        throw(ErrorException("Can't parse Singular's output at $a"))
+        throw(SngularError("Can't parse Singular's output at $a"))
     end
 end
 
@@ -134,7 +149,7 @@ function parse_matrix(::Type{P}, a::AbstractString) where P<:Polynomial
         (lhs, poly) = split(line, "=", limit=2)
         m = match(r".*\[(?<row>[0-9]+),(?<col>[0-9]+)\]", lhs)
         if m === nothing
-            throw(ErrorException("Can't parse Singular's output at $lhs (in $a)"))
+            throw(SngularError("Can't parse Singular's output at $lhs (in $a)"))
         end
         (parse(Int, m[:row]), parse(Int, m[:col]), parse_polynomial(P, poly))
     end
@@ -149,38 +164,37 @@ end
 
 function singular_std(G::AbstractArray{P}) where P<:Polynomial
     singularproc() do singular
-        expect!(singular, "> ")
+        expect_output!(singular)
         set_ring!(singular, P)
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         print(singular, "ideal I = ")
         join(singular, G, ", ")
         println(singular, ";")
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         println(singular, "std(I);")
-        result = expect!(singular, "> ")
+        result = expect_output!(singular)
 
         parse_array(P, result)
     end
 end
 
 function singular_std(G::AbstractArray{<:AbstractArray{P}}) where P<:Polynomial
-    isempty(G) && return copy(G)
     module_dims = size(G[1])
 
     singularproc() do singular
-        expect!(singular, "> ")
+        expect_output!(singular)
         set_ring!(singular, P)
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         print(singular, "module M = ")
         join(singular, G, ", ")
         println(singular, ";")
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         println(singular, "std(M);")
-        result = expect!(singular, "> ")
+        result = expect_output!(singular)
 
         sparse_gr = parse_array(P, result, module_dims)
         gr = issparse(G[1]) ? sparse_gr : collect.(sparse_gr)
@@ -191,22 +205,22 @@ end
 
 function singular_liftstd(G::AbstractArray{P}) where P<:Polynomial
     singularproc() do singular
-        expect!(singular, "> ")
+        expect_output!(singular)
         set_ring!(singular, P)
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         print(singular, "ideal I = ")
         join(singular, G, ", ")
         println(singular, ";")
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         println(singular, "matrix T;")
-        expect!(singular, "> ")
+        expect_output!(singular)
         println(singular, "liftstd(I, T);")
-        result = expect!(singular, "> ")
+        result = expect_output!(singular)
 
         println(singular, "T;")
-        result_matrix = expect!(singular, "> ")
+        result_matrix = expect_output!(singular)
 
         gr = parse_array(P, result)
         tr = parse_matrix(P, result_matrix)
@@ -216,26 +230,25 @@ function singular_liftstd(G::AbstractArray{P}) where P<:Polynomial
 end
 
 function singular_liftstd(G::AbstractArray{<:AbstractArray{P}}) where P<:Polynomial
-    isempty(G) && return copy(G)
     module_dims = size(G[1])
 
     singularproc() do singular
-        expect!(singular, "> ")
+        expect_output!(singular)
         set_ring!(singular, P)
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         print(singular, "module M = ")
         join(singular, G, ", ")
         println(singular, ";")
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         println(singular, "matrix T;")
-        expect!(singular, "> ")
+        expect_output!(singular)
         println(singular, "liftstd(M, T);")
-        result = expect!(singular, "> ")
+        result = expect_output!(singular)
 
         println(singular, "T;")
-        result_matrix = expect!(singular, "> ")
+        result_matrix = expect_output!(singular)
 
         sparse_gr = parse_array(P, result, module_dims)
         tr = parse_matrix(P, result_matrix)
@@ -248,65 +261,81 @@ end
 
 function singular_lift(G::AbstractArray{P}, y::P) where P<:Polynomial
     singularproc() do singular
-        expect!(singular, "> ")
+        expect_output!(singular)
         set_ring!(singular, P)
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         print(singular, "ideal I = ")
         join(singular, G, ", ")
         println(singular, ";")
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         print(singular, "poly y = ")
         print(singular, y)
         println(singular, ";")
-        expect!(singular, "> ")
+        expect_output!(singular)
 
-        println(singular, "lift(I, y);")
-        result = expect!(singular, "> ")
-
-        parse_matrix(P, result)
+        try
+            println(singular, "lift(I, y);")
+            result = expect_output!(singular)
+            return parse_matrix(P, result)
+        catch e
+            if isa(e, SingularError) && "not a proper submodule" ⊆ e.msg
+                return null
+            else
+                rethrow(e)
+            end
+        end
     end
 end
 
 function singular_lift(G::AbstractArray{<:A}, y::A) where A<:AbstractArray{P} where P<:Polynomial
-    isempty(G) && return copy(G)
     module_dims = size(G[1])
 
     singularproc() do singular
-        expect!(singular, "> ")
+        expect_output!(singular)
         set_ring!(singular, P)
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         print(singular, "module M = ")
         join(singular, G, ", ")
         println(singular, ";")
-        expect!(singular, "> ")
+        expect_output!(singular)
 
         print(singular, "vector y = ")
         print(singular, y)
         println(singular, ";")
-        expect!(singular, "> ")
+        expect_output!(singular)
 
-        println(singular, "lift(M, y);")
-        result = expect!(singular, "> ")
-
-        parse_matrix(P, result)
+        try
+            println(singular, "lift(M, y);")
+            result = expect_output!(singular)
+            return parse_matrix(P, result)
+        catch e
+            if isa(e, SingularError) && "not a proper submodule" ⊆ e.msg
+                return null
+            else
+                rethrow(e)
+            end
+        end
     end
 end
 
 const ApplicableBaserings = Union{BigInt,Rational{BigInt}}
 const ApplicablePolynomial = PolynomialOver{<:ApplicableBaserings}
-const ApplicableModuleElement = Union{ApplicablePolynomial, AbstractArray{<:ApplicablePolynomial}}
+const ApplicableModuleElement{P<:ApplicablePolynomial} = Union{P, AbstractArray{<:P}}
 function gröbner_basis(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomials::AbstractArray{<:ApplicableModuleElement}; kwds...)
+    isempty(polynomials) && return copy(polynomials)
     return singular_std(polynomials)
 end
 function gröbner_transformation(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomials::AbstractArray{<:ApplicableModuleElement}; kwds...)
+    isempty(polynomials) && return copy(polynomials), eye(P, 0)
     gr, tr = singular_liftstd(polynomials)
     return gr, sparse(transpose(tr)) # opposite convention for matrix multiplication in Singular compared to us
 end
 
 function lift(::SingularExpect, G::AbstractArray{<:ApplicableModuleElement}, y::ApplicableModuleElement; kwds...)
+    isempty(G) && return iszero(y) ? P[]' : null
     return singular_lift(G, y)' # opposite convention for matrix multiplication in Singular compared to us
 end
 
