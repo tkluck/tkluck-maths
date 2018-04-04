@@ -49,6 +49,9 @@ function expect_output!(sp::SingularProc{<:ExpectProc})
     if "// **" ⊆ output
         msg = mapreduce(m->m[:msg], *, eachmatch(r"// \*\* (?<msg>.*)$"m, output))
         throw(SingularError("Error from Singular: $msg"))
+    elseif "   ?" ⊆ output
+        msg = mapreduce(m->m[:msg], *, eachmatch(r"   \? (?<msg>.*)$"m, output))
+        throw(SingularError("Error from Singular: $msg"))
     else
        return output
     end
@@ -283,7 +286,10 @@ function singular_lift(G::AbstractArray{P}, y::P) where P<:Polynomial
             result = expect_output!(singular)
             return parse_matrix(P, result)
         catch e
-            if isa(e, SingularError) && "not a proper submodule" ⊆ e.msg
+            if isa(e, SingularError) && (
+                "not a proper submodule" ⊆ e.msg ||
+                "2nd module does not lie in the first" ⊆ e.msg
+            )
                 return null
             else
                 rethrow(e)
@@ -315,7 +321,10 @@ function singular_lift(G::AbstractArray{<:A}, y::A) where A<:AbstractArray{P} wh
             result = expect_output!(singular)
             return parse_matrix(P, result)
         catch e
-            if isa(e, SingularError) && "not a proper submodule" ⊆ e.msg
+            if isa(e, SingularError) && (
+                "not a proper submodule" ⊆ e.msg ||
+                "2nd module does not lie in the first" ⊆ e.msg
+            )
                 return null
             else
                 rethrow(e)
