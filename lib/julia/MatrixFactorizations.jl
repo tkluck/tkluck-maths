@@ -435,11 +435,12 @@ function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
 
     @assert e*QQQ == QQQ*e
     strictification_loops = 0
+    h = matrix_solve_affine(h->QQQ*h + h*QQQ, e^2 - e, size(QQQ))
+    isnull(h) && throw(ArgumentError("Failed to strictify e: not idempotent"))
     while e^2 != e
         (strictification_loops+=1) > 1 && throw(ArgumentError("Failed to strictify e: too many loops"))
-        h = matrix_solve_affine(h->QQQ*h + h*QQQ, e^2 - e, size(QQQ))
-        h === nothing && throw(ArgumentError("Failed to strictify e: not idempotent"))
         b = matrix_solve_affine(b->e*b + b*e, h, size(QQQ))
+        h = -b + h + e*b + b*e + (b^2*QQQ + QQQ*b^2)//2 + b*QQQ*b
         e = e + QQQ*b + b*QQQ
     end
 
