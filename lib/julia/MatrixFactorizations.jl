@@ -288,7 +288,7 @@ end
 
 function (op::RowOp)(M::AbstractMatrix)
     n, m = size(M)
-    n == m && n%2 == 0 || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.RowOp"))
+    (n == m && n%2 == 0) || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.RowOp"))
     res = copy(M)
     if op.source_row == 0
         res[op.target_row,:] *= op.target_factor
@@ -317,7 +317,7 @@ end
 
 function (op::ColOp)(M::AbstractMatrix)
     n, m = size(M)
-    n == m && n%2 == 0 || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.ColOp"))
+    (n == m && n%2 == 0) || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.ColOp"))
     res = copy(M)
     if op.source_col == 0
         res[:,op.target_col] *= op.target_factor
@@ -368,7 +368,7 @@ end
 
 function dual(M::AbstractMatrix)
     n, m = size(M)
-    n == m && n%2 == 0 || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.dual"))
+    (n == m && n%2 == 0) || throw(ArgumentError("Need square, even-rank matrix for applying MatrixFactorizations.dual"))
 
     [
        M[1:end÷2, 1:end÷2]     M[end÷2+1:end, 1:end÷2]    ;
