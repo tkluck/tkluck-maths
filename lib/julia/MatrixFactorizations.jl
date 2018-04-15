@@ -400,6 +400,35 @@ function getpotential(A::AbstractMatrix)
     return f
 end
 
+small_fractions = [a//b for a=-100:100 for b = -100:100 if gcd(a,b) == 1]
+sort!(small_fractions)
+function round_to_small_fraction(a::Rational)
+    ix = searchsortedfirst(small_fractions, a)
+    (ix <= 1 || ix >= length(small_fractions)) && throw(ErrorException())
+    below, above = small_fractions[ix-1:ix]
+    δ₂ = above - a
+    δ₁ = a - below
+    return δ₂ < δ₁ ? above : below
+end
+function find_zero_in_small_fractions(f, df, x0)
+    max_loops = 7
+    x = x0
+    for _ in 1:max_loops
+        f_x = f(x)
+        iszero(f_x) && return x
+        @show f_x
+        # Newton's method
+        δx = matrix_solve_affine(δx->df(x,δx), f_x, size(x))
+        x = x - δx
+
+        # after a sufficient number of iterations, we should be close enough
+        # that rounding to a small fraction gives a zero.
+        x_rounded = map_coefficients.(round_to_small_fraction, x)
+        iszero(f(x_rounded)) && return x_rounded
+    end
+    return nothing
+end
+
 function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
     vars_to_fuse = [var_to_fuse; vars_to_fuse...]
     R = promote_type(eltype(A), eltype(B))
@@ -433,21 +462,19 @@ function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
     e = (-1)^length(var_data) * p(λλ * At)
     QQQ = p(QQ)
 
-    @assert e*QQQ == QQQ*e
     e, QQQ = sparse.((e,QQQ))
 
-    strictification_loops = 0
     h = matrix_solve_affine(h->QQQ*h + h*QQQ, e^2 - e, size(QQQ))
     isnull(h) && throw(ArgumentError("Failed to strictify e: not idempotent"))
-    while e^2 != e
-        (strictification_loops+=1) > 1 && throw(ArgumentError("Failed to strictify e: too many loops"))
-        b = matrix_solve_affine(b->e*b + b*e, h, size(QQQ))
-        h = -b + h + e*b + b*e + (b^2*QQQ + QQQ*b^2)//2 + b*QQQ*b
-        e = e + QQQ*b + b*QQQ
-    end
+    f(b) = -b + h + e*b + b*e + (b^2*QQQ + QQQ*b^2)//2 + b*QQQ*b
+    df(b, xi) = -xi + e*xi + xi*e + ((b*xi + xi*b)*QQQ + QQQ*(b*xi + xi*b))//2 + xi*QQQ*b + b*QQQ*xi
+    b = find_zero_in_small_fractions(f, df, zero(h))
+    b === nothing && throw(ArgumentError("Failed to strictify e: no idempotent in small fractions"))
+    e_strict = e + QQQ*b + b*QQQ
+    @assert e_strict^2 == e_strict
 
     # naive splitting of the idempotent
-    image = hcat(gröbner_basis(columns(e))...)
+    image = hcat(gröbner_basis(columns(e_strict))...)
     d = size(image, 2)
     return collect( matrix_solve_affine(Q -> image*Q, QQQ*image, (d,d)) )
 end
