@@ -25,7 +25,7 @@ function singularproc(f)
     # -t avoids a segfault when inputting large input
     # pty=true is default, but it's good to be explicit
     # because we really need the "> " prompts
-    stream = ExpectProc(`Singular -q -t`, 86400, pty=true)
+    stream = ExpectProc(`Singular -q -t --cntrlc=q`, 86400, pty=true)
     singular = SingularProc(stream)
     try
         return f(singular)
