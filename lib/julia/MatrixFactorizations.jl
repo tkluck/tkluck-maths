@@ -325,11 +325,11 @@ function (op::ColOp)(M::AbstractMatrix)
     elseif (op.target_col <= n÷2 && op.source_col <= n÷2) || (op.target_col > n÷2 && op.source_col > n÷2)
         # column operation
         target_topright = @view res[:,[op.target_col,op.source_col]]
-        t = [op.target_factor op.source_factor; 0 1]
+        t = [op.target_factor 0; op.source_factor 1]
         target_topright .= target_topright * t
         # corresonding column operation in the other block
         target_bottomleft = @view res[[op.target_col,op.source_col],:]
-        t_inv = [1 -op.source_factor; 0 op.target_factor]//op.target_factor
+        t_inv = [1 0; -op.source_factor op.target_factor]//op.target_factor
         target_bottomleft .= t_inv * target_bottomleft
     else
         throw(ArgumentError("MatrixFactorizations.ColOp needs to have both rows in the same graded block"))
