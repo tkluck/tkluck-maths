@@ -8,6 +8,8 @@ import PolynomialRings.VariableNames: Named
 
 import PolynomialRings: ⊗
 
+const to_dense = collect
+
 include("MatrixFactorizations/Library.jl")
 
 """
@@ -476,7 +478,7 @@ function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
     # naive splitting of the idempotent
     image = hcat(gröbner_basis(columns(e_strict))...)
     d = size(image, 2)
-    return collect( matrix_solve_affine(Q -> image*Q, QQQ*image, (d,d)) )
+    return to_dense( matrix_solve_affine(Q -> image*Q, QQQ*image, (d,d)) )
 end
 
 function ⊕(A::AbstractMatrix, B::AbstractMatrix)
