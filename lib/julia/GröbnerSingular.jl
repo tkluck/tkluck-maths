@@ -1,7 +1,5 @@
 module GröbnerSingular
 
-using Nulls: null
-
 using PolynomialRings.Monomials: AbstractMonomial, num_variables, enumeratenz
 import PolynomialRings.MonomialOrderings: MonomialOrder
 using PolynomialRings.Terms: Term, coefficient, monomial
@@ -290,7 +288,7 @@ function singular_lift(G::AbstractArray{P}, y::P) where P<:Polynomial
                 "not a proper submodule" ⊆ e.msg ||
                 "2nd module does not lie in the first" ⊆ e.msg
             )
-                return null
+                return nothing
             else
                 rethrow(e)
             end
@@ -325,7 +323,7 @@ function singular_lift(G::AbstractArray{<:A}, y::A) where A<:AbstractArray{P} wh
                 "not a proper submodule" ⊆ e.msg ||
                 "2nd module does not lie in the first" ⊆ e.msg
             )
-                return null
+                return nothing
             else
                 rethrow(e)
             end
@@ -347,8 +345,12 @@ function gröbner_transformation(::SingularExpect, ::MonomialOrder{:degrevlex}, 
 end
 
 function lift(::SingularExpect, G::AbstractArray{<:ApplicableModuleElement}, y::ApplicableModuleElement; kwds...)
-    isempty(G) && return iszero(y) ? P[]' : null
-    return singular_lift(G, y)' # opposite convention for matrix multiplication in Singular compared to us
+    isempty(G) && return iszero(y) ? P[]' : nothing
+    res = singular_lift(G, y)
+    if res !== nothing
+        res = res' # opposite convention for matrix multiplication in Singular compared to us
+    end
+    return res
 end
 
 
