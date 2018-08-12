@@ -1,5 +1,7 @@
 module MatrixFactorizations
 
+using SparseArrays: sparse
+
 using PolynomialRings
 using PolynomialRings: basering, variablesymbols
 using PolynomialRings.QuotientRings: QuotientRing, representation_matrix
@@ -67,11 +69,11 @@ function ⨷(A,B)
 
     A,B = to_alternating_grades.((A,B))
 
-    res = [a.*B for a in A]
+    res = [a*B for a in A]
 
-    for row in indices(res,1), col in indices(res,2)
+    for row in axes(res,1), col in axes(res,2)
         inner = res[row,col]
-        for inner_row in indices(inner,1), inner_col in indices(inner,2)
+        for inner_row in axes(inner,1), inner_col in axes(inner,2)
             # Koszul signs; see formula in the documentation string
             if col%2 == 0 && (inner_row+inner_col)%2 == 1
                 inner[inner_row, inner_col] *= -1
@@ -98,7 +100,7 @@ end
 
 Tensor product of matrix factorizations.
 """
-⨶(A,B) = A⨷eye(B) + eye(A)⨷B
+⨶(A,B) = A⨷one(B) + one(A)⨷B
 
 """
     X⊗quotient_ring
@@ -208,7 +210,7 @@ NOTE: for now, this function only returns D, and not yet A!
 """
 function block_diagonalization(X)
     D = copy(X)
-    A = eye(X)
+    A = one(X)
     top_right = @view D[1:end÷2, end÷2+1:end]
 
     # the following functions take parameters indexing `top_right`, but they
@@ -224,8 +226,8 @@ function block_diagonalization(X)
     end
 
     for _=1:100
-        for row in indices(top_right,1), col in indices(top_right,2)
-            for row2 in indices(top_right,1)
+        for row in axes(top_right,1), col in axes(top_right,2)
+            for row2 in axes(top_right,1)
                 row2 == row && continue
                 iszero(top_right[row2,col]) && continue
                 (d,),r = divrem(top_right[row2,col], [top_right[row,col]])
@@ -234,7 +236,7 @@ function block_diagonalization(X)
                     @goto more_loops
                 end
             end
-            for col2 in indices(top_right,2)
+            for col2 in axes(top_right,2)
                 col2 == col && continue
                 iszero(top_right[row,col2]) && continue
                 (d,),r = divrem(top_right[row,col2], [top_right[row,col]])
@@ -250,7 +252,7 @@ function block_diagonalization(X)
 
     # most inefficient algorithm I can think of
     blocks = []
-    for row in indices(top_right,1), col in indices(top_right,2)
+    for row in axes(top_right,1), col in axes(top_right,2)
         if !iszero(top_right[row, col])
             push!(blocks, (Set([row]), Set([col])))
         end
@@ -398,7 +400,7 @@ end
 function getpotential(A::AbstractMatrix)
     A_sq = A^2
     f = A_sq[1,1]
-    A_sq == f*eye(A_sq) || throw(ArgumentError("getpotential() needs a matrix factorization"))
+    A_sq == f*one(A_sq) || throw(ArgumentError("getpotential() needs a matrix factorization"))
     return f
 end
 
@@ -450,12 +452,12 @@ function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
             pow > 30 && throw(ArgumentError("Power for computing Jacobian is too high; exiting"))
         end
         lift = div(R(v)^pow, gr)*tr
-        λ = eye(A)⨷sum(prod, zip(lift, ∇B))
+        λ = one(A)⨷sum(prod, zip(lift, ∇B))
         t = Symbol("t$i")
         (v, pow, t, λ)
     end
 
-    inflate(M) = foldl((x,f)->f(x), M, [x->matrix_over_subring(x, v, pow, t) for (v, pow, t, λ) in var_data])
+    inflate(M) = foldl((x,f)->f(x), [x->matrix_over_subring(x, v, pow, t) for (v, pow, t, λ) in var_data], init=M)
     p(x) = x(; [t=>0 for (v, pow, t, λ) in var_data]...)
 
     QQ = inflate(Q)
@@ -467,7 +469,8 @@ function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
     e, QQQ = sparse.((e,QQQ))
 
     h = matrix_solve_affine(h->QQQ*h + h*QQQ, e^2 - e, size(QQQ))
-    isnull(h) && throw(ArgumentError("Failed to strictify e: not idempotent"))
+    h == nothing && throw(ArgumentError("Failed to strictify e: not idempotent"))
+
     f(b) = -b + h + e*b + b*e + (b^2*QQQ + QQQ*b^2)//2 + b*QQQ*b
     df(b, xi) = -xi + e*xi + xi*e + ((b*xi + xi*b)*QQQ + QQQ*(b*xi + xi*b))//2 + xi*QQQ*b + b*QQQ*xi
     b = find_zero_in_small_fractions(f, df, zero(h))
@@ -497,8 +500,8 @@ function ⊞(A::AbstractMatrix, B::AbstractMatrix)
     return from_alternating_grades(C ⊕ D)
 end
 
-rows(M::AbstractMatrix) =    [M[i,:]' for i=indices(M,1)]
-columns(M::AbstractMatrix) = [M[:,i]  for i=indices(M,2)]
+rows(M::AbstractMatrix) =    [transpose(M[i,:]) for i=axes(M,1)]
+columns(M::AbstractMatrix) = [M[:,i]  for i=axes(M,2)]
 topleft(M::AbstractMatrix)     = M[1:end÷2,     1:end÷2]
 topright(M::AbstractMatrix)    = M[1:end÷2,     end÷2+1:end]
 bottomleft(M::AbstractMatrix)  = M[end÷2+1:end, 1:end÷2]

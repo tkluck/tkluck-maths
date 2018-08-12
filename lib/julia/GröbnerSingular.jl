@@ -1,5 +1,7 @@
 module GröbnerSingular
 
+using SparseArrays: AbstractSparseArray, issparse, sparse
+
 using PolynomialRings.Monomials: AbstractMonomial, num_variables, enumeratenz
 import PolynomialRings.MonomialOrderings: MonomialOrder
 using PolynomialRings.Terms: Term, coefficient, monomial
@@ -87,7 +89,7 @@ end
 
 function print(singular::SingularProc, a::AbstractSparseArray{<:Polynomial})
     print(singular,"0")
-    for i in find(a)
+    for i in LinearIndices(a)[findall(!iszero, a)]
         print(singular, "+")
         print(singular, "gen($i)*(")
         print(singular, a[i])
@@ -99,9 +101,9 @@ function parse_polynomial(::Type{P}, a::AbstractString) where P<:Polynomial
     if startswith(a, "-")
         a = "0$a"
     end
-    mapreduce(+, zero(P), split(a, "+")) do positive_term
+    mapreduce(+, split(a, "+"), init=zero(P)) do positive_term
         mapfoldl(-, split(positive_term, "-")) do term
-            mapreduce(*, one(P), split(term, "*")) do var
+            mapreduce(*, split(term, "*"), init=one(P)) do var
                 m = match(r"
                     x\(  (?<varnum>[0-9]+)  \)  (?:\^  (?<exp>[0-9]+)  )?
                     |
@@ -345,16 +347,18 @@ function gröbner_transformation(::SingularExpect, ::MonomialOrder{:degrevlex}, 
 end
 
 function lift(::SingularExpect, G::AbstractArray{<:ApplicableModuleElement}, y::ApplicableModuleElement; kwds...)
-    isempty(G) && return iszero(y) ? P[]' : nothing
+    isempty(G) && return iszero(y) ? transpose(P[]) : nothing
     res = singular_lift(G, y)
     if res !== nothing
-        res = res' # opposite convention for matrix multiplication in Singular compared to us
+        res = transpose(res) # opposite convention for matrix multiplication in Singular compared to us
     end
     return res
 end
 
 
 import PolynomialRings
-PolynomialRings.Backends.Gröbner.set_default(SingularExpect())
+function enable()
+    PolynomialRings.Backends.Gröbner.set_default(SingularExpect())
+end
 
 end

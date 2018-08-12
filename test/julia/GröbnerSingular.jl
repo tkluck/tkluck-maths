@@ -1,8 +1,10 @@
-using Base.Test
+using Test
+using PolynomialRings
 using GröbnerSingular
+GröbnerSingular.enable()
 
 @testset "Groebner testset" begin
     # will run these tests, but with GröbnerSingular set as the default
     # engine
-    include(Pkg.dir("PolynomialRings", "test", "Groebner.jl"))
+    include(joinpath(dirname(pathof(PolynomialRings)), "../test/Groebner.jl"))
 end
