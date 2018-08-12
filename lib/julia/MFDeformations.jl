@@ -84,21 +84,21 @@ end
 
 
 function graded_implicit_tangent_space(f, Q, vars::Gradings)
-    info("Computing gradings")
+    @info("Computing gradings")
     gr = map(q_i->quasidegree(q_i, vars), Q)
 
-    info("Creating deformation vector")
+    @info("Creating deformation vector")
     c = formal_coefficients(eltype(Q), :c)
     N = generic_quasihomogeneous_map(gr, vars, c)
 
-    info("Applying function")
+    @info("Applying function")
     CC = flat_coefficients(f(Q+N) - f(Q), symbols(vars)...)
 
-    info("Getting linear coefficients")
+    @info("Getting linear coefficients")
     coeffs = [@linear_coefficients(cc, c[]) for cc in CC]
     rows = length(coeffs)
     cols = maximum(length, coeffs)
-    info("Computing matrix")
+    @info("Computing matrix")
     M = zeros(eltype(eltype(coeffs)), rows, cols)
     for (i,c) in enumerate(coeffs)
         for (j,cc) in enumerate(c)
@@ -106,10 +106,10 @@ function graded_implicit_tangent_space(f, Q, vars::Gradings)
         end
     end
 
-    info("Computing kernel")
+    @info("Computing kernel")
     K = PolynomialRings.Util.LinAlgUtil.nullspace(M)
 
-    info("Substituting kernel back into deformation vector")
+    @info("Substituting kernel back into deformation vector")
     result = map(indices(K,2)) do j
         N(c = i->K[i,j])
     end
@@ -118,7 +118,7 @@ function graded_implicit_tangent_space(f, Q, vars::Gradings)
     # skips variables
     filter!(!iszero, result)
 
-    info("Done")
+    @info("Done")
 
     return result
 end
@@ -163,7 +163,7 @@ function deformation(Q, vars::Gradings; max_order=20)
         Qdef += Q_next
         sumobs += obs_next
 
-        info("Step $(ord): $( toq() )")
+        @info("Step $(ord): $( toq() )")
     end
 
     return Q + Qdef

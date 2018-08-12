@@ -114,11 +114,11 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
         qdim2 = constant_coefficient(quantum_dimension(Q,V,Vvars,Wvars), Wvars...)
 
         if iszero(qdim1) || iszero(qdim2)
-            info("Found an admissible grading distribution, but its quantum dimension vanishes identically")
+            @info("Found an admissible grading distribution, but its quantum dimension vanishes identically")
             return false # continue
         end
 
-        info("Found a potentially interesting grading distribution: doing the full computation.")
+        @info("Found a potentially interesting grading distribution: doing the full computation.")
 
         # to dense monomials
         converted = to_dense_monomials([qdim1; qdim2; C])
@@ -133,11 +133,11 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
         qdim2_red = rem(qdim2, CC)
 
         if !iszero(qdim1_red) && !iszero(qdim2_red)
-            info("Found one!")
+            @info("Found one!")
             found = true
             return true # break
         else
-            info("Unfortunately, for this grading distribution, no solutions exist with a non-vanising quantum dimension.")
+            @info("Unfortunately, for this grading distribution, no solutions exist with a non-vanising quantum dimension.")
         end
     end
     return found ? true : null
@@ -147,7 +147,7 @@ function is_orbifold_equivalent(W, Wvars, V, Vvars, max_rank=Inf)
 
     for rank = Base.Iterators.countfrom(2)  # FIXME: generic_quasihomogeneous_map breaks on rank=1
         rank > max_rank && break
-        info("Trying rank=$rank")
+        @info("Trying rank=$rank")
         if equivalence_exists(W, Wvars, V, Vvars, rank)
             return true
         end

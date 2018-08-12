@@ -328,7 +328,7 @@ function find_standard_duality(W, vars...)
         end
     end
 
-    info("Found $count/$loops possibilities")
+    @info("Found $count/$loops possibilities")
 end
 
 function E14_E14()
