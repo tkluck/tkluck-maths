@@ -404,7 +404,7 @@ function getpotential(A::AbstractMatrix)
     return f
 end
 
-small_fractions = [a//b for a=-100:100 for b = -100:100 if gcd(a,b) == 1]
+small_fractions = [0//1;[a//b for a=-2000:2000 for b = 1:2000 if gcd(a,b) == 1]]
 sort!(small_fractions)
 function round_to_small_fraction(a::Rational)
     ix = searchsortedfirst(small_fractions, a)
@@ -420,7 +420,6 @@ function find_zero_in_small_fractions(f, df, x0)
     for _ in 1:max_loops
         f_x = f(x)
         iszero(f_x) && return x
-        @show f_x
         # Newton's method
         δx = matrix_solve_affine(δx->df(x,δx), f_x, size(x))
         x = x - δx
