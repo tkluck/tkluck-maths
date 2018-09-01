@@ -170,7 +170,7 @@ function variables_appearing(f)
     return Symbol[v for v in vars[appears]]
 end
 
-function is_orbifold_equivalence_for_some_values(Q, W, V)
+function check_orbifold_equivalence_for_some_values(Q, W, V)
     W_vars = variables_appearing(W)
     V_vars = variables_appearing(V)
     lqdim = quantum_dimension(Q, W, W_vars, V_vars)
@@ -186,7 +186,7 @@ function is_orbifold_equivalence_for_some_values(Q, W, V)
 end
 
 export supertrace, multivariate_residue, quantum_dimension, equivalence_exists, is_orbifold_equivalent
-export is_orbifold_equivalence_for_some_values
+export check_orbifold_equivalence_for_some_values
 export unit_matrix_factorization
 
 
