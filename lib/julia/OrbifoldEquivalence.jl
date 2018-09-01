@@ -13,9 +13,9 @@ function supertrace(Q::Matrix)
     n,m = size(Q)
     n == m && n%2 ==0 || throw(ArgumentError("Cannot compute supertrace of $n x $m matrix"))
 
-    k = div(n,2)
-
-    return sum(Q[i,i] for i=1:k) - sum(Q[i,i] for i=(k+1):2k)
+    firsthalf = diagind(Q)[1:end÷2]
+    secondhalf = diagind(Q)[end÷2+1:end]
+    return sum(i->Q[i], firsthalf) - sum(i->Q[i], secondhalf)
 end
 
 function multivariate_residue(g, f, vars...)
