@@ -56,7 +56,7 @@ enumerate_admissible_gradings(f::Function, N::Integer, W, vars...) = enumerate_a
 
 function enumerate_admissible_gradings(f::Function, ::Type{Val{N}}, W, vars...) where N
     gr = QuasiHomogeneous.find_quasihomogeneous_degrees(W, vars...)
-    vgr = gradings(vgr)
+    vgr = gradings(gr)
     total_grading = quasidegree(W,gr)
     grading = e -> sum(e.*vgr)
 
@@ -85,8 +85,13 @@ function enumerate_admissible_gradings(f::Function, ::Type{Val{N}}, W, vars...) 
             m = [ row[j] + (col[k] - col[1]) for j=1:N, k=1:N ]
             n = [ col[k] + (row[j] - row[1]) for j=1:N, k=1:N ]
             z = fill(-1, size(m))
-            if f( [ z m; n z] )
+            res = f( [ z m; n z] )
+            if res === :break
                 break
+            elseif res === :continue
+                continue
+            else
+                throw(RuntimeError("Don't know how to continue after $res"))
             end
         end
     end
@@ -102,19 +107,19 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
 
     enumerate_admissible_gradings(rank, W - V, Wvars..., Vvars...) do gr
         next_coeff = formal_coefficients(R,:c)
-        c1 = take!(next_coeff)
+        c1 = next_coeff()
         Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, next_coeff)
 
         C = flat_coefficients(Q^2 - c1^2*(V-W)*one(Q), Wvars..., Vvars...)
 
-        @assert(!(coefficient((-c1^2).p.terms[1]) in C))
+        @assert(!(coefficient((-c1^2).terms[1]) in C))
 
-        qdim1 = constant_coefficient(quantum_dimension(Q,W,Wvars,Vvars), Vvars...)
-        qdim2 = constant_coefficient(quantum_dimension(Q,V,Vvars,Wvars), Wvars...)
+        qdim1 = quantum_dimension(Q,W,Wvars,Vvars)
+        qdim2 = quantum_dimension(Q,V,Vvars,Wvars)
 
         if iszero(qdim1) || iszero(qdim2)
             @info("Found an admissible grading distribution, but its quantum dimension vanishes identically")
-            return false # continue
+            return :continue
         end
 
         @info("Found a potentially interesting grading distribution: doing the full computation.")
@@ -165,7 +170,7 @@ function variables_appearing(f)
     return Symbol[v for v in vars[appears]]
 end
 
-function is_orbifold_equivalence(Q, W, V)
+function is_orbifold_equivalence_for_some_values(Q, W, V)
     W_vars = variables_appearing(W)
     V_vars = variables_appearing(V)
     lqdim = quantum_dimension(Q, W, W_vars, V_vars)
@@ -181,7 +186,7 @@ function is_orbifold_equivalence(Q, W, V)
 end
 
 export supertrace, multivariate_residue, quantum_dimension, equivalence_exists, is_orbifold_equivalent
-export is_orbifold_equivalence
+export is_orbifold_equivalence_for_some_values
 export unit_matrix_factorization
 
 

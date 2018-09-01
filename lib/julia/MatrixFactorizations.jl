@@ -468,7 +468,7 @@ function ⨶(A::AbstractMatrix, B::AbstractMatrix, var_to_fuse, vars_to_fuse...)
     e, QQQ = sparse.((e,QQQ))
 
     h = matrix_solve_affine(h->QQQ*h + h*QQQ, e^2 - e, size(QQQ))
-    h == nothing && throw(ArgumentError("Failed to strictify e: not idempotent"))
+    h === nothing && throw(ArgumentError("Failed to strictify e: not idempotent"))
 
     f(b) = -b + h + e*b + b*e + (b^2*QQQ + QQQ*b^2)//2 + b*QQQ*b
     df(b, xi) = -xi + e*xi + xi*e + ((b*xi + xi*b)*QQQ + QQQ*(b*xi + xi*b))//2 + xi*QQQ*b + b*QQQ*xi
