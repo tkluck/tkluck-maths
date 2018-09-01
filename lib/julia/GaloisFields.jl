@@ -36,7 +36,7 @@ inv(a::F) where F<:GF = F(Reduced(), invmod(a.n,char(F)))
 
 show(io::IO, a::GF) = show(io, a.n)
 function show(io::IO, ::Type{GF{I,p}}) where {I,p}
-    number = replace("$p", r"[0-9]", x->['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'][parse(Int,x) + 1])
+    number = replace("$p", r"[0-9]" => x->['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'][parse(Int,x) + 1])
     write(io, "𝔽$number")
 end
 

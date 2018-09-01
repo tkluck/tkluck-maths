@@ -1,7 +1,8 @@
 module OrbifoldEquivalence
 
 using Base.Iterators
-using Nulls
+using SparseArrays: spzeros
+using LinearAlgebra: det, diagind
 
 using PolynomialRings
 using PolynomialRings: allvariablesymbols, basering
@@ -34,13 +35,11 @@ function multivariate_residue(g, f, vars...)
         M[row,:] = factors*tr
     end
 
-    # workaround: convert M and f to dense matrix/array for the multiplication;
-    # for some reason, we get a method error otherwise.
-    f_transformed = [m_i for m_i in M] * [f_i for f_i in f]
+    f_transformed = M * f
     g_transformed = g * det(M)
 
     term, r = divrem(prod(f_transformed), prod(convert(R,v) for v in vars))
-    assert(iszero(r))
+    @assert(iszero(r))
 
     return coefficient(g_transformed, term, vars...)
 end
@@ -73,14 +72,14 @@ function enumerate_admissible_gradings(f::Function, ::Type{Val{N}}, W, vars...) 
         divisor_gradings = sort([grading(ee[i:i+n_vars-1]) for i=1:n_vars:length(ee)])
 
         if N == length(divisor_gradings)
-            push!(admissible_rows, ntuple(i->divisor_gradings[i], Val{N}))
+            push!(admissible_rows, ntuple(i->divisor_gradings[i], N))
         else
             throw(AssertionError("Not implemented"))
         end
     end
 
     for row in admissible_rows
-        col = ntuple(i -> total_grading - row[i], Val{N})
+        col = ntuple(i -> total_grading - row[i], N)
 
         if all( (row .+ (col[k] - col[1])) in admissible_rows for k = 2:N)
             m = [ row[j] + (col[k] - col[1]) for j=1:N, k=1:N ]
@@ -106,7 +105,7 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
         c1 = take!(next_coeff)
         Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, next_coeff)
 
-        C = flat_coefficients(Q^2 - c1^2*(V-W)*eye(Int,size(Q)...), Wvars..., Vvars...)
+        C = flat_coefficients(Q^2 - c1^2*(V-W)*one(Q), Wvars..., Vvars...)
 
         @assert(!(coefficient((-c1^2).p.terms[1]) in C))
 
@@ -135,12 +134,12 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
         if !iszero(qdim1_red) && !iszero(qdim2_red)
             @info("Found one!")
             found = true
-            return true # break
+            return :break
         else
             @info("Unfortunately, for this grading distribution, no solutions exist with a non-vanising quantum dimension.")
         end
     end
-    return found ? true : null
+    return found ? true : nothing
 end
 
 function is_orbifold_equivalent(W, Wvars, V, Vvars, max_rank=Inf)
@@ -148,11 +147,11 @@ function is_orbifold_equivalent(W, Wvars, V, Vvars, max_rank=Inf)
     for rank = Base.Iterators.countfrom(2)  # FIXME: generic_quasihomogeneous_map breaks on rank=1
         rank > max_rank && break
         @info("Trying rank=$rank")
-        if equivalence_exists(W, Wvars, V, Vvars, rank)
+        if equivalence_exists(W, Wvars, V, Vvars, rank) == true
             return true
         end
     end
-    return null
+    return nothing
 end
 
 function variables_appearing(f)
