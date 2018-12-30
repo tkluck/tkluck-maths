@@ -504,7 +504,7 @@ columns(M::AbstractMatrix) = [M[:,i]  for i=axes(M,2)]
 topleft(M::AbstractMatrix)     = M[1:end÷2,     1:end÷2]
 topright(M::AbstractMatrix)    = M[1:end÷2,     end÷2+1:end]
 bottomleft(M::AbstractMatrix)  = M[end÷2+1:end, 1:end÷2]
-bottomright(M::AbstractMatrix) = M[end÷2+1:end, end÷2:end]
+bottomright(M::AbstractMatrix) = M[end÷2+1:end, end÷2+1:end]
 
 export ⨷, ⨶, ⊞, ⊕
 export unit_matrix_factorization
