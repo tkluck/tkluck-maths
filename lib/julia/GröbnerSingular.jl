@@ -6,7 +6,8 @@ using PolynomialRings.Monomials: AbstractMonomial, num_variables, enumeratenz
 import PolynomialRings.MonomialOrderings: MonomialOrder
 using PolynomialRings.Terms: Term, coefficient, monomial
 using PolynomialRings.Polynomials: Polynomial, PolynomialOver, monomialtype, terms
-using PolynomialRings: generators, integral_fraction, base_extend
+using PolynomialRings: generators, integral_fraction, base_extend, basering
+using GaloisFields: AbstractGaloisField, char
 
 import Expect: ExpectProc, expect!
 
@@ -62,7 +63,8 @@ expect!(sp::SingularProc, x) = ""
 print(ep::ExpectProc, x::Char) = print(ep.in_stream, x)
 
 function set_ring!(singular::SingularProc, ::Type{P}) where P<:Polynomial
-    println(singular, "ring R = 0, x(1..$(num_variables(monomialtype(P)))), (c,dp);")
+    q = char(basering(P))
+    println(singular, "ring R = $q, x(1..$(num_variables(monomialtype(P)))), (c,dp);")
 end
 
 function print(singular::SingularProc, x::Rational)
@@ -333,7 +335,7 @@ function singular_lift(G::AbstractArray{<:A}, y::A) where A<:AbstractArray{P} wh
     end
 end
 
-const ApplicableBaserings = Union{BigInt,Rational{BigInt}}
+const ApplicableBaserings = Union{BigInt,Rational{BigInt},AbstractGaloisField}
 const ApplicablePolynomial = PolynomialOver{<:ApplicableBaserings}
 const ApplicableModuleElement{P<:ApplicablePolynomial} = Union{P, AbstractArray{<:P}}
 function gröbner_basis(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomials::AbstractArray{<:ApplicableModuleElement}; kwds...)
