@@ -10,6 +10,7 @@ using PolynomialRings
 using PolynomialRings: allvariablesymbols, basering
 using PolynomialRings.NamedPolynomials: unused_variable
 using QuasiHomogeneous: monomials_of_grading, find_quasihomogeneous_degrees, quasidegree
+using QuasiHomogeneous: gradings, generic_quasihomogeneous_map
 using GröbnerSingular: singular_modulo
 using MatrixFactorizations: columns
 
@@ -59,7 +60,7 @@ end
 enumerate_admissible_gradings(f::Function, N::Integer, W, vars...) = enumerate_admissible_gradings(f, Val{N}, W, vars...)
 
 function enumerate_admissible_gradings(f::Function, ::Type{Val{N}}, W, vars...) where N
-    gr = QuasiHomogeneous.find_quasihomogeneous_degrees(W, vars...)
+    gr = find_quasihomogeneous_degrees(W, vars...)
     vgr = gradings(gr)
     total_grading = quasidegree(W,gr)
     grading = e -> sum(e.*vgr)
@@ -105,14 +106,14 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
 
     R,allvars = polynomial_ring(Wvars..., Vvars...)
 
-    vgr = QuasiHomogeneous.find_quasihomogeneous_degrees(W - V, Wvars..., Vvars...)
+    vgr = find_quasihomogeneous_degrees(W - V, Wvars..., Vvars...)
 
     found = false
 
     enumerate_admissible_gradings(rank, W - V, Wvars..., Vvars...) do gr
         next_coeff = formal_coefficients(R,:c)
         c1 = next_coeff()
-        Q = QuasiHomogeneous.generic_quasihomogeneous_map(gr, vgr, next_coeff)
+        Q = generic_quasihomogeneous_map(gr, vgr, next_coeff)
 
         C = flat_coefficients(Q^2 - c1^2*(V-W)*one(Q), Wvars..., Vvars...)
 
