@@ -76,7 +76,7 @@ function generic_quasihomogeneous_polynomial(total_grading::I, g::Gradings, next
     R,_ = polynomial_ring(symbols(g)..., basering=Int)
     monomials = [construct_monomial(R, e) for e in monomials_of_grading(total_grading, gradings(g))]
     if(length(monomials) == 0)
-        return next_coeff() * zero(R) # hack to make sure it has the same type
+        return zero(eltype(next_coeff)) * zero(R)
     else
         return sum(next_coeff()*m for m in monomials)
     end

@@ -155,7 +155,7 @@ end
 
 function is_orbifold_equivalent(W, Wvars, V, Vvars, max_rank=Inf)
 
-    for rank = Base.Iterators.countfrom(2)  # FIXME: generic_quasihomogeneous_map breaks on rank=1
+    for rank = Base.Iterators.countfrom(1)
         rank > max_rank && break
         @info("Trying rank=$rank")
         if equivalence_exists(W, Wvars, V, Vvars, rank) == true
