@@ -147,6 +147,7 @@ function equivalence_exists(W, Wvars, V, Vvars, rank)
             return :break
         else
             @info("Unfortunately, for this grading distribution, no solutions exist with a non-vanising quantum dimension.")
+            return :continue
         end
     end
     return found ? true : nothing
