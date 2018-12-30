@@ -11,7 +11,7 @@ using PolynomialRings: allvariablesymbols, basering
 using PolynomialRings.NamedPolynomials: unused_variable
 using QuasiHomogeneous
 
-function supertrace(Q::Matrix)
+function supertrace(Q::AbstractMatrix)
     n,m = size(Q)
     n == m && n%2 ==0 || throw(ArgumentError("Cannot compute supertrace of $n x $m matrix"))
 
@@ -46,7 +46,7 @@ function multivariate_residue(g, f, vars...)
     return coefficient(g_transformed, term, vars...)
 end
 
-function quantum_dimension(Q::Matrix, W, left_vars, right_vars)
+function quantum_dimension(Q::AbstractMatrix, W, left_vars, right_vars)
     g = supertrace(prod( diff(Q, v) for v in left_vars) * prod( diff(Q, v) for v in right_vars) )
     f = [diff(W,v) for v in left_vars]
 
