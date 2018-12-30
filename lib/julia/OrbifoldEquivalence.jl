@@ -75,10 +75,15 @@ function enumerate_admissible_gradings(f::Function, ::Type{Val{N}}, W, vars...) 
 
     for ee in Base.Iterators.product([0:k for k in all_exponents]...)
         divisor_gradings = sort([grading(ee[i:i+n_vars-1]) for i=1:n_vars:length(ee)])
+        unique_divisor_gradings = Set(divisor_gradings)
 
         if N == length(divisor_gradings)
             push!(admissible_rows, ntuple(i->divisor_gradings[i], N))
+        elseif N == length(unique_divisor_gradings)
+            divisor_gradings = sort(collect(unique_divisor_gradings))
+            push!(admissible_rows, ntuple(i->divisor_gradings[i], N))
         else
+            continue
             throw(AssertionError("Not implemented"))
         end
     end
