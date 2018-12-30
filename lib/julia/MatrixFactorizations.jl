@@ -6,7 +6,8 @@ using PolynomialRings
 using PolynomialRings: basering, variablesymbols
 using PolynomialRings.QuotientRings: QuotientRing, representation_matrix
 using Combinatorics: permutations, parity
-import PolynomialRings.VariableNames: Named
+import PolynomialRings.NamingSchemes: Named
+import PolynomialRings.MonomialOrderings: MonomialOrder
 
 import PolynomialRings: ⊗
 
@@ -381,7 +382,7 @@ function dual(M::AbstractMatrix)
 end
 
 function matrix_over_subring(M::AbstractMatrix, var, exp, substitution_var)
-    _, P = PolynomialRings.Expansions._expansion_types(eltype(M), Named{(var,)})
+    _, P = PolynomialRings.Expansions._expansion_types(eltype(M), MonomialOrder{:degrevlex, Named{(var,)}}())
     R, (substitution_var_val,) = polynomial_ring(substitution_var, basering=Int)
     S = promote_type(P, R)
     blocks = map(M) do f
