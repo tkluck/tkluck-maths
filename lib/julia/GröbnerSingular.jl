@@ -99,6 +99,19 @@ function print(singular::SingularProc, a::AbstractSparseArray{<:Polynomial})
     end
 end
 
+function declare_matrix(singular::SingularProc, name::Symbol, A::AbstractMatrix{<:Polynomial})
+    n, m = size(A)
+    println(singular, "matrix $name[$n][$m];")
+    expect_output!(singular)
+    for ix in findall(!iszero, A)
+        row, col = Tuple(ix)
+        print(singular, "$name[$row,$col] = ")
+        print(singular, A[ix])
+        println(singular, ";")
+        expect_output!(singular)
+    end
+end
+
 function parse_polynomial(::Type{P}, a::AbstractString) where P<:Polynomial
     if startswith(a, "-")
         a = "0$a"
@@ -332,6 +345,24 @@ function singular_lift(G::AbstractArray{<:A}, y::A) where A<:AbstractArray{P} wh
                 rethrow(e)
             end
         end
+    end
+end
+
+function singular_modulo(A::AbstractMatrix{<:P}, B::AbstractMatrix{<:P}) where P<:Polynomial
+    singularproc() do singular
+        expect_output!(singular)
+        set_ring!(singular, P)
+        expect_output!(singular)
+
+        declare_matrix(singular, :A, A)
+        declare_matrix(singular, :B, B)
+
+        println(singular, "matrix C = modulo(A, B);")
+        expect_output!(singular)
+
+        println(singular, "C;")
+        result = expect_output!(singular)
+        return parse_matrix(P, result)
     end
 end
 

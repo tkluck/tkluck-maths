@@ -65,6 +65,11 @@ monomials_of_grading(total_grading::I, variable_gradings::NTuple{N, I}) where I 
     end
 end
 
+function monomials_of_grading(total_grading::Integer, g::Gradings)
+    R,_ = polynomial_ring(symbols(g)..., basering=Int)
+    return [construct_monomial(R, e) for e in monomials_of_grading(total_grading, gradings(g))]
+end
+
 using PolynomialRings: construct_monomial, formal_coefficients
 
 function generic_quasihomogeneous_polynomial(total_grading::I, g::Gradings, next_coeff) where I <: Integer

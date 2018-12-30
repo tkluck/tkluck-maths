@@ -2,14 +2,16 @@ module OrbifoldEquivalence
 
 using Base.Iterators
 using SparseArrays: spzeros
-using LinearAlgebra: det, diagind
+using LinearAlgebra: det, diagind, diagm, I
 
 using Primes: factor
 
 using PolynomialRings
 using PolynomialRings: allvariablesymbols, basering
 using PolynomialRings.NamedPolynomials: unused_variable
-using QuasiHomogeneous
+using QuasiHomogeneous: monomials_of_grading, find_quasihomogeneous_degrees, quasidegree
+using GröbnerSingular: singular_modulo
+using MatrixFactorizations: columns
 
 function supertrace(Q::AbstractMatrix)
     n,m = size(Q)
@@ -241,10 +243,44 @@ function central_charge(f::Polynomial, vars::Symbol...)
 
 end
 
+function matrix_factorization_from_resolution(f, F)
+    res = base_extend.(zero(F))
+    G, tr = gröbner_transformation(columns(F))
+    rhs = f * one(F)
+    for i in axes(F,2)
+        q, r = divrem(rhs[:,i], G)
+        @assert iszero(r)
+        res[:,i] = transpose(q * tr)
+    end
+    return [0I F; res 0I]
+end
+
+function herzog_sanders_factorization(f::Polynomial, a::Integer, vars::Symbol...)
+    R = typeof(f)
+    gr = find_quasihomogeneous_degrees(f, vars...)
+    N = quasidegree(f, gr)
+
+    a >= N || throw("herzog_sanders_factorization: need `a` greater than quasidegree of f; quasidegree $f is $N")
+
+    I = [monomials_of_grading(a, gr); f]
+    Ω = collect(transpose(I))
+    while size(Ω)[1] != size(Ω)[2]
+        @show size(Ω)
+        Z = diagm(1=>[f for _=1:size(Ω,1)])
+        I = singular_modulo(Ω, Z)
+        I = xrem.(I, f)
+        nonzero_cols = [i for i in axes(I, 2) if !iszero(@view I[:, i])]
+        Ω = I[:, nonzero_cols]
+    end
+    @show size(Ω)
+    return matrix_factorization_from_resolution(f, Ω)
+end
+
 export supertrace, multivariate_residue, quantum_dimension, equivalence_exists, is_orbifold_equivalent
 export check_orbifold_equivalence_for_some_values
 export unit_matrix_factorization
 export central_charge_preimage, central_charge
+export herzog_sanders_factorization
 
 
 end
