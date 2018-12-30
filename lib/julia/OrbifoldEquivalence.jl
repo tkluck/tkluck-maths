@@ -4,6 +4,8 @@ using Base.Iterators
 using SparseArrays: spzeros
 using LinearAlgebra: det, diagind
 
+using Primes: factor
+
 using PolynomialRings
 using PolynomialRings: allvariablesymbols, basering
 using PolynomialRings.NamedPolynomials: unused_variable
@@ -185,9 +187,64 @@ function check_orbifold_equivalence_for_some_values(Q, W, V)
     end
 end
 
+function divisors(n)
+    fs = factor(n)
+    ee = collect(values(fs))
+    (prod(b^e for (b,e) in zip(keys(fs), exps)) for exps in product(ntuple(i -> 0:ee[i], length(fs))...))
+end
+
+function central_charge_preimage(a, b, k)
+    I = promote_type(typeof.((a, b, k))...)
+    preimage = Set{Tuple{I, I, I}}()
+    n = k == 2 ? 1 : 0
+    for l in (0, 1, 2)
+        m = l == 2 ? 1 : 0
+        RHS = (n - a*b)^2 + (a+b-k)*(m*(a+b-k) - (a*b-n)*l)
+        if !iszero(RHS)
+            for p::I in divisors(RHS)
+                q = RHS ÷ p
+                c, r1 = divrem(p + a*b - n, a + b - k)
+                d, r2 = divrem(q + a*b - n, a + b - k)
+                c, d = (p+a*b-n)/(a+b-k), (q+a*b-n)/(a+b-k)
+                if iszero(r1) && iszero(r2) && c > 1 && d > 1
+                    push!(preimage, (c,d,l))
+                end
+            end
+        end
+    end
+    return preimage
+end
+
+function central_charge_preimage(a, b, k, x, y)
+    P = promote_type(typeof(x), typeof(y))
+    preimage = Set{P}()
+    for (a′, b′, k′) in central_charge_preimage(a, b, k)
+        if k′ == 0
+            push!(preimage, x^a′ + y^b′)
+        elseif k′ == 1
+            push!(preimage, x^a′ + x*y^b′)
+        elseif k′ == 2
+            push!(preimage, y*x^a′ + x*y^b′)
+        else
+            throw("Unexpected value: $k′")
+        end
+    end
+    return preimage
+end
+
+function central_charge(f::Polynomial, vars::Symbol...)
+    gradings = find_quasihomogeneous_degrees(f, vars...)
+    d = quasidegree(f, gradings)
+    scale = 2//d
+
+    return sum(1 - scale*d for (v, d) in gradings)
+
+end
+
 export supertrace, multivariate_residue, quantum_dimension, equivalence_exists, is_orbifold_equivalent
 export check_orbifold_equivalence_for_some_values
 export unit_matrix_factorization
+export central_charge_preimage, central_charge
 
 
 end
