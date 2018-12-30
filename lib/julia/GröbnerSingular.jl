@@ -127,7 +127,7 @@ function parse_polynomial(::Type{P}, a::AbstractString) where P<:Polynomial
                         P(num)
                     end
                 else
-                    throw(SngularError("Can't parse Singular's output at $var (in $a)"))
+                    throw(SingularError("Can't parse Singular's output at $var (in $a)"))
                 end
             end
         end
@@ -141,7 +141,7 @@ function parse_vector(::Type{P}, a::AbstractString, module_dims) where P<:Polyno
         res[1:length(entries)] = entries
         res
     else
-        throw(SngularError("Can't parse Singular's output at $a"))
+        throw(SingularError("Can't parse Singular's output at $a"))
     end
 end
 
@@ -157,7 +157,7 @@ function parse_matrix(::Type{P}, a::AbstractString) where P<:Polynomial
         (lhs, poly) = split(line, "=", limit=2)
         m = match(r".*\[(?<row>[0-9]+),(?<col>[0-9]+)\]", lhs)
         if m === nothing
-            throw(SngularError("Can't parse Singular's output at $lhs (in $a)"))
+            throw(SingularError("Can't parse Singular's output at $lhs (in $a)"))
         end
         (parse(Int, m[:row]), parse(Int, m[:col]), parse_polynomial(P, poly))
     end
