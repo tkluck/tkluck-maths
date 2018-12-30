@@ -165,7 +165,7 @@ function is_orbifold_equivalent(W, Wvars, V, Vvars, max_rank=Inf)
 end
 
 function variables_appearing(f)
-    vars = allvariablesymbols(typeof(f))
+    vars = collect(allvariablesymbols(typeof(f)))
     appears = [false for _ in vars]
     for (p,c) in expansion(f, vars...)
         if !iszero(c)
