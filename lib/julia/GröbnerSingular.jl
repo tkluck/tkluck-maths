@@ -374,12 +374,14 @@ function gröbner_basis(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomia
     return singular_std(polynomials)
 end
 function gröbner_transformation(::SingularExpect, ::MonomialOrder{:degrevlex}, polynomials::AbstractArray{<:ApplicableModuleElement}; kwds...)
+    P = eltype(polynomials)
     isempty(polynomials) && return copy(polynomials), eye(P, 0)
     gr, tr = singular_liftstd(polynomials)
     return gr, sparse(transpose(tr)) # opposite convention for matrix multiplication in Singular compared to us
 end
 
 function lift(::SingularExpect, G::AbstractArray{<:ApplicableModuleElement}, y::ApplicableModuleElement; kwds...)
+    P = eltype(G)
     isempty(G) && return iszero(y) ? transpose(P[]) : nothing
     res = singular_lift(G, y)
     if res !== nothing
