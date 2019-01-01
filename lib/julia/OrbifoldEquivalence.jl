@@ -251,6 +251,9 @@ function central_charge(f::Polynomial, vars::Symbol...)
 end
 
 function matrix_factorization_from_resolution(f, F)
+    nonzero_rows = [i for i in axes(F, 1) if !iszero(@view F[i, :])]
+    nonzero_cols = [i for i in axes(F, 2) if !iszero(@view F[:, i])]
+    F = F[nonzero_rows, nonzero_cols]
     res = base_extend.(zero(F))
     G, tr = gröbner_transformation(columns(F))
     rhs = f * one(F)
@@ -266,21 +269,25 @@ function herzog_sanders_factorization(f::Polynomial, a::Integer, vars::Symbol...
     R = typeof(f)
     gr = find_quasihomogeneous_degrees(f, vars...)
     N = quasidegree(f, gr)
+    d = length(vars) - 1
 
     a >= N || throw("herzog_sanders_factorization: need `a` greater than quasidegree of f; quasidegree $f is $N")
 
-    I = [monomials_of_grading(a, gr); f]
-    Ω = collect(transpose(I))
-    while size(Ω)[1] != size(Ω)[2]
-        @show size(Ω)
-        Z = diagm(1=>[f for _=1:size(Ω,1)])
-        I = singular_modulo(Ω, Z)
+    I = rem.(R[monomials_of_grading(a, gr);], f)
+    F1 = collect(transpose([unique(I);]))
+    function Ω(F)
+        Z = diagm(1=>[f for _=1:size(F,1)])
+        I = singular_modulo(F, Z)
         I = xrem.(I, f)
         nonzero_cols = [i for i in axes(I, 2) if !iszero(@view I[:, i])]
-        Ω = I[:, nonzero_cols]
+        I[:, nonzero_cols]
     end
-    @show size(Ω)
-    return matrix_factorization_from_resolution(f, Ω)
+
+    Fi = F1
+    for i in 2:d+1
+        Fi = Ω(Fi)
+    end
+    return matrix_factorization_from_resolution(f, Fi)
 end
 
 export supertrace, multivariate_residue, quantum_dimension, equivalence_exists, is_orbifold_equivalent
